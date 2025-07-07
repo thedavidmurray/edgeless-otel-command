@@ -187,9 +187,9 @@ def generate_executive_summary(analysis_data):
     key_concepts = analysis_data.get('key_concepts', [])
     
     if 'langchain' in [c.lower() for c in key_concepts]:
-        return f"""This comprehensive analysis reveals advanced LangChain orchestration patterns for building production-ready AI systems. The {total_pages}-page documentation provides battle-tested approaches to agent architecture, workflow management, and system reliability. These patterns directly address our current challenges with MCP integration and autonomous agent development, offering proven solutions for complex AI orchestration."""
+        return f"""This analysis reveals advanced LangChain orchestration patterns for building production-ready AI systems. The documentation provides battle-tested approaches to agent architecture, workflow management, and system reliability. These patterns directly address our current challenges with MCP integration and autonomous agent development, offering proven solutions for complex AI orchestration."""
     else:
-        return f"""This technical resource provides comprehensive architectural patterns for building scalable, reliable systems. The {total_pages} pages of documentation reveal production-proven approaches to system design, deployment, and integration. These insights offer immediately applicable solutions to our current development challenges while providing strategic direction for system architecture evolution."""
+        return f"""This technical resource provides comprehensive architectural patterns for building scalable, reliable systems. The documentation reveals production-proven approaches to system design, deployment, and integration. These insights offer immediately applicable solutions to our current development challenges while providing strategic direction for system architecture evolution."""
 
 def generate_technical_insights(analysis_data):
     """Generate formatted technical insights"""
@@ -356,12 +356,12 @@ def generate_strategic_importance(analysis_data):
     if any(concept in ['langchain', 'ai', 'llm'] for concept in key_concepts):
         return f"""This analysis provides crucial insights into building production-ready AI systems that can operate reliably at scale. The discovered patterns address fundamental challenges we face with agent orchestration, state management, and system integration. By implementing these approaches, we can significantly improve the reliability of our MCP integrations and autonomous agent workflows.
 
-The comprehensive coverage of {total_pages} pages ensures we have captured the complete architectural blueprint for advanced AI system development. This knowledge directly translates to competitive advantages in our AI/LLM development capabilities and positions us to build more sophisticated, reliable automation systems."""
+The comprehensive analysis ensures we have captured the complete architectural blueprint for advanced AI system development. This knowledge directly translates to competitive advantages in our AI/LLM development capabilities and positions us to build more sophisticated, reliable automation systems."""
     
     else:
-        return f"""This comprehensive analysis reveals production-tested patterns for building reliable, scalable systems that directly address our current technical challenges. The discovered approaches provide immediate solutions to integration complexity while offering strategic direction for system architecture evolution.
+        return f"""This analysis reveals production-tested patterns for building reliable, scalable systems that directly address our current technical challenges. The discovered approaches provide immediate solutions to integration complexity while offering strategic direction for system architecture evolution.
 
-The {total_pages}-page coverage ensures complete capture of proven implementation strategies. This knowledge foundation enables us to build more robust, maintainable systems while avoiding common architectural pitfalls that slow development velocity."""
+The thorough coverage ensures complete capture of proven implementation strategies. This knowledge foundation enables us to build more robust, maintainable systems while avoiding common architectural pitfalls that slow development velocity."""
 
 def generate_strategic_subject(site_name, value_prop):
     """Generate strategic subject line"""
