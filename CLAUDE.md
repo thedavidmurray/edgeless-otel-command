@@ -46,6 +46,12 @@ python tools/core/workspace-cleanup.py
 python complete-link-ingestion-tool.py URL      # 25 pages
 python deepwiki-comprehensive-ingestion.py URL   # 150 pages
 python ultra-comprehensive-ingestion.py URL      # 500 pages
+
+# FZF productivity shortcuts (after installing fzf)
+CTRL-T  # Fuzzy file search
+CTRL-R  # Fuzzy command history
+fo      # Fuzzy open vault notes (custom function)
+ft      # Fuzzy run tools (custom function)
 ```
 
 ## 📧 Email Quick Reference
