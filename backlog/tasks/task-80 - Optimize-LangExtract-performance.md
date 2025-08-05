@@ -6,7 +6,7 @@
 **Effort**: 3 days
 
 ## Description
-Optimize LangExtract performance across all integration points (Tasks 71-79) through model selection, prompt engineering, parallel processing, caching strategies, and resource management.
+Optimize LangExtract performance across all integration points (Tasks 71-79) using Claude backend through model selection, prompt engineering, parallel processing, caching strategies, and resource management.
 
 ## Performance Optimization Areas
 
@@ -15,19 +15,24 @@ Optimize LangExtract performance across all integration points (Tasks 71-79) thr
 # Intelligent model routing based on content type
 model_routing = {
     "simple_extraction": {
-        "model": "gemini-2.5-flash",
+        "model": "claude-3-haiku-20240307",
         "max_tokens": 1000,
-        "cost_per_request": 0.005
+        "cost_per_request": 0.003
     },
     "complex_research": {
-        "model": "gemini-2.5-pro", 
+        "model": "claude-3-5-sonnet-20241022", 
         "max_tokens": 4000,
-        "cost_per_request": 0.025
+        "cost_per_request": 0.015
     },
     "bulk_processing": {
-        "model": "gemini-2.5-flash",
+        "model": "claude-3-haiku-20240307",
         "batch_size": 10,
-        "cost_per_request": 0.003
+        "cost_per_request": 0.002
+    },
+    "premium_analysis": {
+        "model": "claude-3-opus-20240229",
+        "max_tokens": 4000,
+        "cost_per_request": 0.075
     }
 }
 ```
@@ -98,10 +103,10 @@ cache_hierarchy = {
 ### 1. API Rate Limiting Optimization
 ```python
 rate_limiter = {
-    "gemini_api": {
-        "requests_per_minute": 60,
-        "tokens_per_minute": 100000,
-        "burst_allowance": 10,
+    "claude_api": {
+        "requests_per_minute": 300,  # Higher rate limit for Claude
+        "tokens_per_minute": 200000,
+        "burst_allowance": 20,
         "backoff_strategy": "exponential"
     },
     "fallback_strategies": [
