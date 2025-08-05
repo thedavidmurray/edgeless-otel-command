@@ -1,13 +1,1 @@
----
-id: task-6
-title: Document all major workflows in Obsidian vault
-status: To Do
-assignee: []
-created_date: '2025-07-14'
-labels:
-  - 'type:documentation'
-  - 'priority:medium'
-dependencies: []
----
-
-## Description
+/Users/djm/claude-projects/02-docs/task-6 - Document-all-major-workflows-in-Obsidian-vault.md

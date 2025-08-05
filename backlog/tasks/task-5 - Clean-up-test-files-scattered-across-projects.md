@@ -1,13 +1,1 @@
----
-id: task-5
-title: Clean up test files scattered across projects
-status: To Do
-assignee: []
-created_date: '2025-07-14'
-labels:
-  - 'type:maintenance'
-  - 'priority:medium'
-dependencies: []
----
-
-## Description
+/Users/djm/claude-projects/02-docs/task-5 - Clean-up-test-files-scattered-across-projects.md
