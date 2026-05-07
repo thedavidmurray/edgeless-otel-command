@@ -1,0 +1,85 @@
+{{ define "main" }}
+<article class="dashboard">
+  <header class="dashboard-header">
+    <h1>{{ .Title }}</h1>
+    {{ with .Description }}<p class="dashboard-description">{{ . }}</p>{{ end }}
+  </header>
+
+  <div class="dashboard-content">
+    {{ .Content }}
+  </div>
+
+  <div class="dashboard-grid">
+    <section class="dashboard-panel">
+      <h2>Recent Ships</h2>
+      {{ $shipLog := index site.Data "ship_log" }}
+      {{ if $shipLog }}
+        <ul class="ship-list">
+        {{ range $shipLog.ships }}
+          <li class="ship-item">
+            <span class="ship-badge">{{ .id }}</span>
+            <span class="ship-title">{{ .title }}</span>
+            <span class="ship-agent">{{ .agent }}</span>
+          </li>
+        {{ end }}
+        </ul>
+        <p class="panel-footer">Updated: {{ $shipLog.generated_at | time.Format "Jan 2, 15:04" }}</p>
+      {{ else }}
+        <p class="panel-empty">No ship data available.</p>
+      {{ end }}
+    </section>
+
+    <section class="dashboard-panel">
+      <h2>Active Agents</h2>
+      <ul class="agent-list">
+        <li class="agent-item">
+          <span class="agent-name">Hive</span>
+          <span class="agent-role">Coordinator</span>
+          <span class="agent-status active">Active</span>
+        </li>
+        <li class="agent-item">
+          <span class="agent-name">Kilo</span>
+          <span class="agent-role">Code Execution</span>
+          <span class="agent-status active">Active</span>
+        </li>
+        <li class="agent-item">
+          <span class="agent-name">Beau</span>
+          <span class="agent-role">VPS/Planning</span>
+          <span class="agent-status active">Active</span>
+        </li>
+        <li class="agent-item">
+          <span class="agent-name">Scribe</span>
+          <span class="agent-role">Knowledge</span>
+          <span class="agent-status active">Active</span>
+        </li>
+        <li class="agent-item">
+          <span class="agent-name">Edgeless CC</span>
+          <span class="agent-role">Engineering Lead</span>
+          <span class="agent-status active">Active</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="dashboard-panel">
+      <h2>This Month</h2>
+      {{ $shipLog := index site.Data "ship_log" }}
+      {{ $count := 0 }}
+      {{ if $shipLog }}
+        {{ $count = $shipLog.count }}
+      {{ end }}
+      <div class="metric">
+        <span class="metric-value">{{ $count }}</span>
+        <span class="metric-label">Issues Shipped</span>
+      </div>
+      <div class="metric">
+        <span class="metric-value">5</span>
+        <span class="metric-label">Active Agents</span>
+      </div>
+    </section>
+  </div>
+
+  <footer class="dashboard-footer">
+    <p>Page updated: {{ .Lastmod.Format "Jan 2, 2006 15:04 MST" }}</p>
+  </footer>
+</article>
+{{ end }}

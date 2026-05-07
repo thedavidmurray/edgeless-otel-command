@@ -1,0 +1,51 @@
+{{/* Product Card Shortcode */}}
+{{ $productId := .Get "product" }}
+{{ $layout := .Get "layout" | default "horizontal" }}
+
+{{ $product := index (where .Site.Data.products "id" $productId) 0 }}
+
+{{ if $product }}
+  <article class="product-card product-card--{{ $layout }}" data-product-id="{{ $product.id }}">
+    <div class="product-card__content">
+      <h3 class="product-card__title">{{ $product.name }}</h3>
+      <p class="product-card__description">{{ $product.description }}</p>
+      
+      {{ with $product.features }}
+        <ul class="product-card__features">
+          {{ range . }}
+            <li>{{ . }}</li>
+          {{ end }}
+        </ul>
+      {{ end }}
+      
+      <div class="product-card__footer">
+        <span class="product-card__price">{{ $product.price_display }}</span>
+        <button 
+          class="buy-button"
+          data-product-id="{{ $product.id }}"
+          data-product-name="{{ $product.name }}"
+          data-product-price="{{ $product.price }}"
+          data-stripe-price-id="{{ $product.stripe_price_id }}"
+          type="button"
+        >
+          Buy Now
+        </button>
+      </div>
+      
+      {{ with $product.includes }}
+        <p class="product-card__includes">
+          <strong>Includes:</strong> {{ delimit . ", " }}
+        </p>
+      {{ end }}
+    </div>
+  </article>
+{{ else }}
+  <div class="product-card-error">
+    <p>Product "{{ $productId }}" not found. Available products:</p>
+    <ul>
+      {{ range .Site.Data.products }}
+        <li>{{ .id }} — {{ .name }}</li>
+      {{ end }}
+    </ul>
+  </div>
+{{ end }}

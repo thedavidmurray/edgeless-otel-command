@@ -1,0 +1,76 @@
+{
+  "generated_at": "2026-05-07T14:06:32.781541",
+  "count": 10,
+  "ships": [
+    {
+      "id": "EDGA-989",
+      "title": "[P0 BLOCKER] Fireworks account suspended \u2014 entire Kimi-based swarm down",
+      "agent": "7778155c...",
+      "completed": "2026-05-06T04:19:02.299Z",
+      "summary": "[P0 BLOCKER] Fireworks account suspended \u2014 entire Kimi-based..."
+    },
+    {
+      "id": "EDGA-1239",
+      "title": "Recover stalled issue EDGA-989",
+      "agent": "97898794...",
+      "completed": "2026-05-05T17:19:23.808Z",
+      "summary": "Recover stalled issue EDGA-989"
+    },
+    {
+      "id": "EDGA-982",
+      "title": "[Swarm-Repair #1] Restore Discord listeners for missing bots (critic, cypher, specimen, builder, anomaly, etc)",
+      "agent": "108735cb...",
+      "completed": "2026-05-05T07:05:50.933Z",
+      "summary": "[Swarm-Repair #1] Restore Discord listeners for missing bots..."
+    },
+    {
+      "id": "EDGA-1076",
+      "title": "Execute Discord Gateway Restoration (EDGA-1075 handoff)",
+      "agent": "97898794...",
+      "completed": "2026-05-05T02:16:56.066Z",
+      "summary": "Execute Discord Gateway Restoration (EDGA-1075 handoff)"
+    },
+    {
+      "id": "EDGA-1060",
+      "title": "EDGA-1057: Critical - All 6 Discord Gateways Not Running (Exit Codes)",
+      "agent": "97898794...",
+      "completed": "2026-05-04T08:06:58.353Z",
+      "summary": "EDGA-1057: Critical - All 6 Discord Gateways Not Running (Ex..."
+    },
+    {
+      "id": "EDGA-1037",
+      "title": "[PRIORITY-1] UNBLOCKED: NotebookLM pipeline ready for enrichment",
+      "agent": "7f8aa3c8...",
+      "completed": "2026-05-03T19:21:32.180Z",
+      "summary": "[PRIORITY-1] UNBLOCKED: NotebookLM pipeline ready for enrich..."
+    },
+    {
+      "id": "EDGA-783",
+      "title": "[Beau] Execute org restructure \u2014 reporting lines, project leads, agent renames",
+      "agent": "575260e2...",
+      "completed": "2026-05-01T21:17:16.805Z",
+      "summary": "[Beau] Execute org restructure \u2014 reporting lines, project le..."
+    },
+    {
+      "id": "EDGA-997",
+      "title": "[Beau Noise #1] APPLIED: Compression disabled in /root/.hermes/config.yaml \u2014 eliminates 429 retry storm",
+      "agent": "Unassigned",
+      "completed": "2026-05-01T06:13:23.352Z",
+      "summary": "[Beau Noise #1] APPLIED: Compression disabled in /root/.herm..."
+    },
+    {
+      "id": "EDGA-951",
+      "title": "[FIXED] youtube_likes broken since Apr 28 \u2014 llm_client package shadowed legacy file",
+      "agent": "Unassigned",
+      "completed": "2026-04-30T07:49:30.190Z",
+      "summary": "[FIXED] youtube_likes broken since Apr 28 \u2014 llm_client packa..."
+    },
+    {
+      "id": "EDGA-908",
+      "title": "Fix product invisibility: SEO + traffic generation",
+      "agent": "ff6991a2...",
+      "completed": "2026-04-29T17:36:27.381Z",
+      "summary": "Fix product invisibility: SEO + traffic generation"
+    }
+  ]
+}

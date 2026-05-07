@@ -1,0 +1,21 @@
+{{/* Buy Button Shortcode - Stripe Checkout Integration */}}
+{{ $productId := .Get "product" }}
+{{ $style := .Get "style" | default "primary" }}
+{{ $text := .Get "text" | default "Buy Now" }}
+
+{{ $product := index (where .Site.Data.products "id" $productId) 0 }}
+
+{{ if $product }}
+  <button 
+    class="buy-button buy-button--{{ $style }}"
+    data-product-id="{{ $product.id }}"
+    data-product-name="{{ $product.name }}"
+    data-product-price="{{ $product.price }}"
+    data-stripe-price-id="{{ $product.stripe_price_id }}"
+    type="button"
+  >
+    {{ $text }} — {{ $product.price_display }}
+  </button>
+{{ else }}
+  <span class="buy-button-error">Product "{{ $productId }}" not found</span>
+{{ end }}

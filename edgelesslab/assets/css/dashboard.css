@@ -1,0 +1,197 @@
+/* Dashboard Styles */
+.dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.dashboard-header {
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--border-color, #333);
+  padding-bottom: 1rem;
+}
+
+.dashboard-description {
+  color: var(--text-muted, #888);
+  font-size: 1.1rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.dashboard-panel {
+  background: var(--panel-bg, #1a1a1a);
+  border: 1px solid var(--border-color, #333);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.dashboard-panel h2 {
+  margin-top: 0;
+  font-size: 1.2rem;
+  color: var(--accent-color, #00d4aa);
+}
+
+/* Ship Log */
+.ship-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ship-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color, #333);
+}
+
+.ship-item:last-child {
+  border-bottom: none;
+}
+
+.ship-badge {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--accent-color, #00d4aa);
+}
+
+.ship-title {
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.ship-agent {
+  font-size: 0.75rem;
+  color: var(--text-muted, #888);
+}
+
+/* Agent List */
+.agent-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.agent-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color, #333);
+}
+
+.agent-item:last-child {
+  border-bottom: none;
+}
+
+.agent-name {
+  font-weight: 600;
+}
+
+.agent-role {
+  font-size: 0.85rem;
+  color: var(--text-muted, #888);
+}
+
+.agent-status {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: var(--status-bg, #2a2a2a);
+}
+
+.agent-status.active {
+  background: #00d4aa;
+  color: #000;
+}
+
+/* Metrics */
+.metric {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color, #333);
+}
+
+.metric:last-child {
+  border-bottom: none;
+}
+
+.metric-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent-color, #00d4aa);
+}
+
+.metric-label {
+  color: var(--text-muted, #888);
+}
+
+/* Panel Footer */
+.panel-footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color, #333);
+  font-size: 0.8rem;
+  color: var(--text-muted, #888);
+}
+
+/* Ship Log Shortcode */
+.ship-log {
+  background: var(--panel-bg, #1a1a1a);
+  border: 1px solid var(--border-color, #333);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.ship-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color, #333);
+  padding-bottom: 0.5rem;
+}
+
+.ship-count {
+  font-size: 0.9rem;
+  color: var(--text-muted, #888);
+}
+
+.ship-entry {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color, #333);
+}
+
+.ship-entry:last-child {
+  border-bottom: none;
+}
+
+.ship-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-muted, #888);
+  margin-top: 0.25rem;
+}
+
+.ship-log-footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color, #333);
+  text-align: right;
+}
+
+/* Last Updated */
+.last-updated {
+  font-size: 0.9rem;
+  color: var(--text-muted, #888);
+}

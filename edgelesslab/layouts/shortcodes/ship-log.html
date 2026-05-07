@@ -1,0 +1,30 @@
+{{ $shipLog := index site.Data "ship_log" }}
+{{ if $shipLog }}
+<div class="ship-log">
+  <div class="ship-log-header">
+    <h3>Recent Ships</h3>
+    <span class="ship-count">{{ $shipLog.count }} completed</span>
+  </div>
+  <div class="ship-log-entries">
+    {{ range $shipLog.ships }}
+    <div class="ship-entry">
+      <div class="ship-id">
+        <a href="https://paperclip.internal/issues/{{ .id }}" target="_blank">{{ .id }}</a>
+      </div>
+      <div class="ship-title">{{ .title }}</div>
+      <div class="ship-meta">
+        <span class="ship-agent">{{ .agent }}</span>
+        <span class="ship-time" data-timestamp="{{ .completed }}">{{ .completed }}</span>
+      </div>
+    </div>
+    {{ end }}
+  </div>
+  <div class="ship-log-footer">
+    <small>Last updated: <span data-timestamp="{{ $shipLog.generated_at }}">{{ $shipLog.generated_at }}</span></small>
+  </div>
+</div>
+{{ else }}
+<div class="ship-log ship-log-empty">
+  <p>No recent ships found. Check back soon.</p>
+</div>
+{{ end }}
