@@ -1,0 +1,28 @@
+{{ $productId := .Get "product" }}
+{{ $product := index (where site.Data.products "id" $productId) 0 }}
+{{ if $product }}
+  {{ if $product.stripe_price_id }}
+    <div class="stripe-checkout">
+      <button 
+        class="btn btn-primary buy-button"
+        data-price-id="{{ $product.stripe_price_id }}"
+        data-product-id="{{ $product.id }}"
+        onclick="initiateCheckout(this)"
+      >
+        Buy Now — {{ $product.price_display }}
+      </button>
+      <p class="payment-note">Secure checkout via Stripe</p>
+    </div>
+    <script src="/js/checkout.js"></script>
+  {{ else if $product.gumroad_url }}
+    <a href="{{ $product.gumroad_url }}" class="btn btn-primary buy-button" target="_blank">
+      Buy on Gumroad — {{ $product.price_display }}
+    </a>
+  {{ else }}
+    <button class="btn btn-primary buy-button" disabled>
+      Coming Soon — {{ $product.price_display }}
+    </button>
+  {{ end }}
+{{ else }}
+  <p class="error">Product not found: {{ $productId }}</p>
+{{ end }}
