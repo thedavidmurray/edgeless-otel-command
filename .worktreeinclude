@@ -1,0 +1,14 @@
+# Files to copy from main checkout into new worktrees.
+# Uses .gitignore syntax. Only matches files that are *both* gitignored
+# *and* listed here — tracked files are never duplicated.
+# Applies to: claude --worktree, subagent worktrees, Desktop auto-worktrees.
+
+# Consolidated API keys (OpenRouter, Gemini, Anthropic, Fireworks, GitHub PATs,
+# Gumroad, Telegram, etc.) — without this, dotenv silently loads nothing in
+# Desktop sessions and Hermes/Pamela/LLM-client tooling breaks invisibly.
+.env
+.env.local
+
+# Local Claude Code overrides (extra Bash permissions for diskutil, du, bun,
+# wrangler, gws, cron alerter, gh commands).
+.claude/settings.local.json
