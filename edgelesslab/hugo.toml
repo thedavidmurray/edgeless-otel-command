@@ -1,0 +1,94 @@
+baseURL = 'https://edgelesslab.com'
+languageCode = 'en-us'
+title = 'Edgeless Lab - AI-Native Creative Studio'
+theme = 'edgeless'
+
+[params]
+  description = "Edgeless Lab is an AI-native creative studio building the future of generative art, autonomous agents, and intelligent systems."
+  author = "Edgeless Lab"
+  keywords = ["AI", "generative art", "machine learning", "creative coding", "autonomous agents", "webgl", "shader art"]
+  
+  # Open Graph / Social
+  images = ["/og-default.webp"]
+  ogTitle = "Edgeless Lab - AI-Native Creative Studio"
+  ogDescription = "Building the future of generative art, autonomous agents, and intelligent systems."
+  twitterCard = "summary_large_image"
+  twitterSite = "@edgelesslab"
+  
+  # Structured Data
+  organizationName = "Edgeless Lab"
+  organizationUrl = "https://edgelesslab.com"
+  organizationLogo = "/logo.png"
+
+[permalinks]
+  posts = "/:slug/"
+  projects = "/work/:slug/"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
+[imaging]
+  quality = 85
+  resampleFilter = "lanczos"
+
+[sitemap]
+  changefreq = "weekly"
+  filename = "sitemap.xml"
+  priority = 0.5
+
+[outputs]
+  home = ["HTML", "RSS", "JSON", "ROBOTS"]
+  section = ["HTML", "RSS"]
+  page = ["HTML"]
+
+[mediaTypes]
+  [mediaTypes."application/json"]
+    suffixes = ["json"]
+  [mediaTypes."text/plain"]
+    suffixes = ["txt"]
+
+[outputFormats]
+  [outputFormats.JSON]
+    mediaType = "application/json"
+    baseName = "index"
+    isPlainText = true
+    notAlternative = true
+  [outputFormats.ROBOTS]
+    mediaType = "text/plain"
+    baseName = "robots"
+    isPlainText = true
+    notAlternative = true
+
+[build]
+  writeStats = true
+  [build.cache]
+    [build.cache.images]
+      dir = ':cacheDir/images'
+
+[menu]
+  [[menu.main]]
+    name = "Work"
+    url = "/work/"
+    weight = 10
+  [[menu.main]]
+    name = "Agents"
+    url = "/agents/"
+    weight = 20
+  [[menu.main]]
+    name = "Lab"
+    url = "/lab/"
+    weight = 30
+  [[menu.main]]
+    name = "Updates"
+    url = "/posts/"
+    weight = 35
+  [[menu.main]]
+    name = "Store"
+    url = "/store/"
+    weight = 36
+  [[menu.main]]
+    name = "About"
+    url = "/about/"
+    weight = 40
