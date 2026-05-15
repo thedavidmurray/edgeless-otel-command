@@ -71,6 +71,7 @@ MONITORED_JOBS = {
         'log_pattern': 'likes_heartbeat_*.log',
         'schedule': '2x daily',  # 7am, 2pm (updated 2026-04-13, was 4x)
         'max_age_hours': 24,  # Widened 2026-04-21 — 18h was tight for Mac-sleep overnight
+        'state_file': LOGS_DIR / 'state' / 'youtube_likes.json',
     },
     # REMOVED 2026-04-10: youtube_newsletter_evening — cron entry never existed,
     # was generating false-positive alerts every 26h. Morning newsletter is the
@@ -86,6 +87,7 @@ MONITORED_JOBS = {
         'log_pattern': 'cron_*.log',
         'schedule': 'daily',  # 11 PM daily (was 2 AM, moved 2026-05-04 to avoid Mac sleep)
         'max_age_hours': 50,  # EDGA-957: 30h -> 50h — tolerate Mac sleep/wake cycles
+        'state_file': LOGS_DIR / 'state' / 'memory_maintenance.json',
     },
     'rss_triage': {
         # Updated 2026-05-04: rss_ingest retired, rss-triage is canonical
@@ -106,6 +108,7 @@ MONITORED_JOBS = {
         'check_log_content': True,  # Parse timestamps inside log, not file mtime
         'schedule': 'weekly',  # Sunday 9 PM (was 3 AM, moved 2026-05-04 to avoid Mac sleep)
         'max_age_hours': 168 + 72,  # EDGA-957: 1 week + 72h grace — tolerate missed windows
+        'state_file': LOGS_DIR / 'state' / 'cleanup_quarantine.json',  # EDGA-1809 — future map
     },
     'cleanup_purge': {
         # Monthly purge of old quarantine
@@ -541,9 +544,11 @@ class CronFailureAlerter:
         Check for cron jobs that haven't run recently.
         Returns list of (job_name, reason) tuples for stale jobs.
 
-        Supports two modes:
+        Supports three modes:
         - 'log': Single log file path
         - 'log_dir' + 'log_pattern': Directory with timestamped files (glob pattern)
+        - 'state_file': State file written by cron-wrapper.sh — preferred mode (EDGA-1809)
+          Uses next_expected_run + max_age_hours grace to avoid Mac-sleep false positives.
         """
         stale_jobs = []
 
@@ -587,8 +592,44 @@ class CronFailureAlerter:
                     stale_jobs.append((job_name, reason))
                 continue
 
-            # Mode 2: Single log file (original behavior)
-            # Skip jobs without log files (heartbeat-only jobs)
+            # Mode 3: State file (EDGA-1809 — state files replace log-mtime heuristics)
+            # When state files are written by cron-wrapper.sh, use them as the authoritative
+            # signal instead of log-file mtime. This eliminates Mac-sleep false positives
+            # because the wrapper writes next_expected_run on every successful exit.
+            if 'state_file' in config:
+                state_path = config['state_file']
+                if state_path.exists():
+                    try:
+                        import json as _json
+                        with open(state_path, 'r') as _swf:
+                            _sdata = _json.load(_swf)
+                        _status = _sdata.get('status', '')
+                        _ner = _sdata.get('next_expected_run')
+                        _now = datetime.utcnow()
+
+                        if _status == 'running':
+                            # Wrapper reported running — not stale by definition
+                            continue
+
+                        if _ner:
+                            try:
+                                _ner_dt = datetime.fromisoformat(_ner.rstrip('Z'))
+                                _grace = timedelta(hours=max_age_hours)
+                                _deadline = _ner_dt + _grace
+                                if _now < _deadline:
+                                    # Still within grace period past next_expected_run — not stale
+                                    continue
+                                else:
+                                    # Past next_expected_run + grace — genuinely overdue
+                                    reason = (
+                                        f"State file: past next_expected_run "
+                                        f"({_ner_dt.isoformat()}) + {max_age_hours}h grace (now: {_now.isoformat()[:19]})"
+                                    )
+                                    stale_jobs.append((job_name, reason))
+                            except (ValueError, TypeError):
+                                pass  # Can't parse next_expected_run — fall through to log check
+                    except Exception:
+                        pass  # State file unreadable — fall through to log check
             if 'log' not in config or not config['log']:
                 continue
 
