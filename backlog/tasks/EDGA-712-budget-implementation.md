@@ -42,11 +42,13 @@ budget:
 3. **Beau** (VPS/infrastructure) - metered=false (Fireworks)
 4. **Edgeless CC** (me) - metered=false (Fireworks)
 5. **Ombudsman** (if waked) - metered=TBD
-
 ## Acceptance Criteria
-- [ ] Budget config added to 5 agent profiles
-- [ ] Budget tracking state file created
-- [ ] 90% threshold warning to #audit-log
-- [ ] 100% threshold halt + Hive notification
-- [ ] One day of metrics → vault report
-- [ ] Daily report distinguishes Fireworks vs metered
+
+- [x] Budget config added to 5 agent profiles
+- [x] Budget tracking state file created
+- [x] 90% threshold warning to #audit-log
+- [x] 100% threshold halt + Hive notification
+- [x] One day of metrics → vault report
+- [x] Daily report distinguishes Fireworks vs metered
+
+**Shipped:** 2026-05-17 — `scripts/budget-monitor.py` + `.hermes/profiles/*/config.yaml` (`79091c2`)
