@@ -4,7 +4,6 @@
 > **Real tasks on disk: 6** | Archived: 18
 
 ## Active Tasks
-## Active Tasks
 
 ### EDGA-191-deliverable.md
 - **Title:** EDGA-191 Deliverable: IndyDevDan Domain-Locking Analysis
