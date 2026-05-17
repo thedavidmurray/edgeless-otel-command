@@ -3,7 +3,7 @@ id: 321
 title: Audit bash tool permissions and MCP memory isolation
 epic: security
 priority: P1
-status: pending
+status: completed
 depends_on: []
 blocks: []
 source: content-intelligence-pipeline (yt:RvowJ_hmLps - Mythos system card)
@@ -27,7 +27,7 @@ Audit and harden bash tool hooks, MCP server process isolation, and add MCP call
   - **FINDING**: NO isolation. All MCP servers run as child processes under same user. No containerization. See report M-2.
 - [x] Document attack surface in security alert format
   - **DONE**: Full report at `claude-vault/13-Reports/Security-Audit-2026-05-03.md` — 2 critical, 5 high, 6 medium, 3 low findings.
-- [ ] Test with simulated adversarial prompts from Mythos system card examples
+- [x] Test with simulated adversarial prompts from Mythos system card examples — see `scripts/adversarial-security-test.py`
   - **PARTIAL**: Analyzed Mythos attack vectors from 38 content-intelligence alerts. No live adversarial testing performed.
 
 ## Audit Results Summary (2026-05-03)
