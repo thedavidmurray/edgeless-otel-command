@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDGELESS :: OTEL COMMAND</title>
+<style>
+/* === RESTRICTED PALETTE === */
+:root {
+  --bg:         #070a07;
+  --bg-panel:   #0d120d;
+  --border-red: #c43e3e;
+  --border-cyan:#2a9d8f;
+  --text-dim:   #2d4a2d;
+  --text-med:   #5a8a5a;
+  --text-bright:#8fbc8f;
+  --red:        #ff4d4d;
+  --red-dim:    #8b2222;
+  --cyan:       #00e5ff;
+  --cyan-dim:   #006b7a;
+  --amber:      #ffb000;
+  --amber-dim:  #8a6000;
+  --grid:       #112211;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text-bright);
+  font-family: 'Courier New', Courier, 'Lucida Console', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+}
+
+/* === CRT OVERLAY === */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 2px);
+  pointer-events: none; z-index: 9999; mix-blend-mode: multiply;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,20,0,0.5) 100%);
+  pointer-events: none; z-index: 9998;
+}
+
+/* === PHOSPHOR GLOW === */
+.glow-red    { text-shadow: 0 0 4px var(--red-dim),   0 0 10px var(--red);   color: var(--red); }
+.glow-cyan   { text-shadow: 0 0 4px var(--cyan-dim),  0 0 10px var(--cyan);  color: var(--cyan); }
+.glow-amber  { text-shadow: 0 0 4px var(--amber-dim), 0 0 10px var(--amber); color: var(--amber); }
+.glow-dim    { text-shadow: 0 0 2px var(--text-dim); color: var(--text-med); }
+
+/* === FLICKER === */
+@keyframes flicker { 0%,100%{opacity:1} 50%{opacity:.98} 52%{opacity:.85} 54%{opacity:.98} 90%{opacity:.97} }
+.flicker { animation: flicker 4s infinite; }
+@keyframes pulse-border { 0%,100%{border-color:var(--border-red)} 50%{border-color:var(--red-dim)} }
+@keyframes scan { 0%{transform:translateY(-100%)} 100%{transform:translateY(100vh)} }
+@keyframes breathe { 0%,100%{opacity:.6} 50%{opacity:1} }
+
+/* === LAYOUT === */
+#app {
+  width: 100vw; height: 100vh;
+  display: grid; grid-template-rows: 36px 1fr;
+  padding: 8px; gap: 8px;
+}
+
+/* === HEADER === */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  border: 1px solid var(--border-red); background: var(--bg-panel);
+  padding: 0 12px; text-transform: uppercase; letter-spacing: 2px;
+}
+header .title { font-weight: bold; font-size: 14px; }
+header .status { display: flex; gap: 18px; align-items: center; }
+header .badge {
+  display: inline-block; padding: 1px 6px; border: 1px solid var(--text-dim);
+  font-size: 10px; min-width: 28px; text-align: center;
+}
+
+/* === MAIN GRID === */
+main {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  grid-template-rows: 1.3fr 1fr;
+  gap: 8px;
+  min-height: 0;
+}
+
+/* === PANELS === */
+.panel {
+  border: 1px solid var(--border-cyan); background: var(--bg-panel);
+  display: flex; flex-direction: column; position: relative; overflow: hidden;
+  min-height: 0;
+}
+.panel.alert { border-color: var(--border-red); animation: pulse-border 2s infinite; }
+.panel::before {
+  content: attr(data-label);
+  position: absolute; top: 0; left: 0; right: 0;
+  background: rgba(10,18,10,0.92); border-bottom: 1px solid var(--border-cyan);
+  padding: 4px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--cyan); z-index: 10; flex-shrink: 0;
+}
+.panel.alert::before { border-bottom-color: var(--border-red); color: var(--red); }
+.panel-content {
+  padding: 28px 8px 8px; flex: 1;
+  overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin; scrollbar-color: var(--text-dim) var(--bg);
+  min-height: 0;
+}
+
+/* === SCROLLBARS === */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--text-dim); border: 1px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--text-med); }
+
+/* === METRIC TILES === */
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.metric {
+  border: 1px solid var(--text-dim); padding: 6px; text-align: center;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.metric-value { font-size: 20px; font-weight: bold; letter-spacing: 1px; line-height: 1; }
+.metric-label { font-size: 9px; text-transform: uppercase; color: var(--text-dim); margin-top: 4px; }
+.metric-spark {
+  display: flex; align-items: flex-end; gap: 1px; height: 18px; margin-top: 4px;
+  justify-content: center;
+}
+.metric-spark .m-bar {
+  flex: 1; max-width: 4px; background: var(--cyan); opacity: .7; min-height: 2px;
+  animation: breathe 2s infinite ease-in-out;
+}
+.metric-spark .m-bar.err { background: var(--red); }
+
+/* === SPARKLINE AREA === */
+.spark-container {
+  margin-top: 6px; border: 1px solid var(--text-dim); padding: 6px;
+  height: 70px; display: flex; flex-direction: column;
+}
+.spark-label { font-size: 9px; text-transform: uppercase; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 4px; }
+.spark-box {
+  display: flex; align-items: flex-end; gap: 2px; flex: 1;
+}
+.spark-bar {
+  flex: 1; background: var(--cyan); opacity: .7; min-height: 2px;
+  transition: height .4s ease;
+}
+.spark-bar.err { background: var(--red); }
+
+/* === DONUT CHART (CSS conic-gradient) === */
+.donut-wrap { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+.donut {
+  width: 90px; height: 90px; border-radius: 50%; position: relative;
+  border: 2px solid var(--text-dim); flex-shrink: 0;
+}
+.donut::after {
+  content: attr(data-pct); position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: bold; color: var(--text-bright);
+}
+.donut-legend { display: flex; flex-direction: column; gap: 4px; font-size: 10px; flex: 1; }
+.donut-legend .leg { display: flex; align-items: center; gap: 6px; }
+.leg-dot { width: 8px; height: 8px; border-radius: 1px; flex-shrink: 0; }
+.leg-name { color: var(--text-med); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.leg-val { color: var(--text-bright); margin-left: auto; }
+
+/* === BAR CHARTS === */
+.bar-chart { display: flex; flex-direction: column; gap: 4px; }
+.bar-row { display: flex; align-items: center; gap: 6px; }
+.bar-label { width: 130px; font-size: 10px; color: var(--text-med); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.bar-track { flex: 1; height: 14px; background: var(--bg); border: 1px solid var(--text-dim); position: relative; }
+.bar-fill { height: 100%; background: linear-gradient(90deg, var(--cyan-dim), var(--cyan)); opacity: .8; transition: width .5s ease; }
+.bar-fill.slow { background: linear-gradient(90deg, var(--red-dim), var(--red)); }
+.bar-fill.med  { background: linear-gradient(90deg, var(--amber-dim), var(--amber)); }
+.bar-val { position: absolute; right: 4px; top: 0; font-size: 9px; line-height: 12px; color: var(--text-bright); }
+
+/* === HEATMAP === */
+.heatmap { display: grid; grid-template-columns: 130px repeat(3, 1fr); gap: 1px; }
+.heatmap-cell { padding: 4px 6px; font-size: 10px; text-align: right; }
+.heatmap-head { color: var(--cyan); text-align: center; border-bottom: 1px solid var(--border-cyan); }
+.heatmap-rowhead { color: var(--text-med); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* === GAUGE / METER === */
+.gauge-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 10px; }
+.gauge-label { width: 100px; color: var(--text-med); text-align: right; }
+.gauge-track { flex: 1; height: 8px; background: var(--bg); border: 1px solid var(--text-dim); position: relative; }
+.gauge-fill { height: 100%; transition: width .5s ease; }
+.gauge-fill.ok  { background: var(--cyan); }
+.gauge-fill.warn{ background: var(--amber); }
+.gauge-fill.crit{ background: var(--red); }
+.gauge-pct { width: 36px; text-align: right; color: var(--text-bright); }
+
+/* === LIVE SIGNAL / WAVEFORM === */
+.waveform { display: flex; align-items: flex-end; gap: 1px; height: 50px; padding: 4px; border: 1px solid var(--text-dim); }
+.wave-bar { flex: 1; background: var(--cyan); opacity: .6; min-height: 2px; transition: height .15s ease; }
+
+/* === SERVICE STATUS GRID === */
+.svc-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 6px; }
+.svc-box { border: 1px solid var(--text-dim); padding: 6px; font-size: 10px; }
+.svc-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.svc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; animation: breathe 3s infinite; }
+.svc-dot.on  { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+.svc-dot.off { background: var(--red-dim); }
+.svc-name { color: var(--text-bright); font-weight: bold; }
+.svc-detail { color: var(--text-dim); font-size: 9px; }
+
+/* === TERMINAL LOG === */
+.log-stream { font-size: 10px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
+.log-entry { margin-bottom: 2px; display: flex; gap: 8px; }
+.log-time { color: var(--text-dim); flex-shrink: 0; width: 56px; }
+.log-sev  { flex-shrink: 0; width: 28px; }
+.log-sev.ok  { color: var(--cyan); }
+.log-sev.err { color: var(--red); }
+.log-sev.warn{ color: var(--amber); }
+.log-op   { color: var(--text-bright); }
+.log-dur  { color: var(--text-dim); }
+.log-id   { color: var(--text-dim); flex-shrink: 0; width: 80px; overflow: hidden; text-overflow: ellipsis; }
+
+/* === TRACE TABLE === */
+.trace-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.trace-table th { text-align: left; padding: 4px; border-bottom: 1px solid var(--border-cyan); color: var(--cyan); font-weight: normal; text-transform: uppercase; letter-spacing: 1px; position: sticky; top: 0; background: var(--bg-panel); z-index: 2; }
+.trace-table td { padding: 4px; border-bottom: 1px solid var(--grid); }
+.trace-table tr:hover td { background: rgba(0,229,255,0.05); }
+
+/* === ANOMALY CARDS === */
+.anom-grid { display: flex; flex-direction: column; gap: 6px; }
+.anom-card { border: 1px solid; padding: 6px; font-size: 10px; }
+.anom-card.crit { border-color: var(--red); background: rgba(139,34,34,0.12); }
+.anom-card.warn { border-color: var(--amber); background: rgba(138,96,0,0.12); }
+.anom-card.ok   { border-color: var(--cyan); background: rgba(0,107,122,0.1); }
+.anom-title { font-weight: bold; margin-bottom: 2px; }
+.anom-detail { color: var(--text-dim); }
+
+/* === TRACE GRAPH (mini tree) === */
+.mini-tree { font-size: 10px; line-height: 1.6; }
+.tree-node { display: flex; align-items: center; gap: 6px; padding: 2px 0; border-left: 1px solid var(--text-dim); padding-left: 8px; }
+.tree-node.root { border-left-color: var(--cyan); padding-left: 4px; }
+.tree-dur { color: var(--text-dim); margin-left: auto; }
+
+/* === GRID BG === */
+.grid-bg {
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* === SCANLINE ANIMATION BAR === */
+.scan-bar {
+  position: absolute; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: .15; pointer-events: none; z-index: 5;
+  animation: scan 3s linear infinite;
+}
+</style>
+</head>
+<body>
+<div id="app" class="flicker">
+  <header>
+    <div class="title glow-cyan">EDGELESS :: OTEL COMMAND</div>
+    <div class="status">
+      <span>JAEGER <span class="badge glow-cyan" id="jaeger-status">OFFLINE</span></span>
+      <span>SVC <span class="badge glow-cyan" id="svc-count">--</span></span>
+      <span>TRACES <span class="badge glow-cyan" id="trace-count">--</span></span>
+      <span>SPANS <span class="badge glow-cyan" id="span-count">--</span></span>
+      <span>ERR <span class="badge glow-red" id="err-rate">--</span></span>
+      <span id="clock" class="glow-dim">--:--:--</span>
+    </div>
+  </header>
+  <main>
+    <!-- Panel 1: Metrics + Donut + Sparkline -->
+    <div class="panel grid-bg" data-label="Throughput & Metrics">
+      <div class="panel-content">
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-value glow-cyan" id="m-traces">--</div>
+            <div class="metric-label">Traces (24h)</div>
+            <div class="metric-spark" id="spark-traces"></div>
+          </div>
+          <div class="metric">
+            <div class="metric-value glow-cyan" id="m-spans">--</div>
+            <div class="metric-label">Total Spans</div>
+            <div class="metric-spark" id="spark-spans"></div>
+          </div>
+          <div class="metric">
+            <div class="metric-value glow-red" id="m-err">--</div>
+            <div class="metric-label">Error Rate</div>
+            <div class="metric-spark" id="spark-err"></div>
+          </div>
+          <div class="metric">
+            <div class="metric-value glow-amber" id="m-ops">--</div>
+            <div class="metric-label">Distinct Ops</div>
+            <div class="metric-spark" id="spark-ops"></div>
+          </div>
+          <div class="metric">
+            <div class="metric-value glow-cyan" id="m-agent">--</div>
+            <div class="metric-label">Active Agent</div>
+            <div class="metric-spark" id="spark-agent"></div>
+          </div>
+          <div class="metric">
+            <div class="metric-value glow-cyan" id="m-model">--</div>
+            <div class="metric-label">Model</div>
+            <div class="metric-spark" id="spark-model"></div>
+          </div>
+        </div>
+
+        <!-- Donut chart -->
+        <div class="donut-wrap">
+          <div class="donut" id="donut-ops" data-pct="%" style="background: conic-gradient(var(--cyan) 0% 0%, var(--bg-panel) 0% 100%);"></div>
+          <div class="donut-legend" id="donut-legend"></div>
+        </div>
+
+        <!-- Trace volume spark -->
+        <div class="spark-container">
+          <div class="spark-label">Trace Volume (last 50 buckets / 5min)</div>
+          <div class="spark-box" id="spark-box"></div>
+        </div>
+
+        <!-- Gauges -->
+        <div style="margin-top:6px;">
+          <div class="gauge-row">
+            <div class="gauge-label">Span Success</div>
+            <div class="gauge-track"><div class="gauge-fill ok" id="gauge-success" style="width:100%"></div></div>
+            <div class="gauge-pct" id="gauge-success-pct">100%</div>
+          </div>
+          <div class="gauge-row">
+            <div class="gauge-label">Slow Ops (&gt;1s)</div>
+            <div class="gauge-track"><div class="gauge-fill warn" id="gauge-slow" style="width:0%"></div></div>
+            <div class="gauge-pct" id="gauge-slow-pct">0%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel 2: Op Breakdown + Waveform -->
+    <div class="panel" data-label="Operation Breakdown">
+      <div class="scan-bar"></div>
+      <div class="panel-content">
+        <div class="bar-chart" id="op-chart"></div>
+        <div style="margin-top:8px; color:var(--text-dim); font-size:9px; text-transform:uppercase; letter-spacing:1px;">Span Throughput (spans/10s poll)</div>
+        <div class="waveform" id="waveform"></div>
+      </div>
+    </div>
+
+    <!-- Panel 3: Latency Heatmap -->
+    <div class="panel" data-label="Latency Heatmap (ms)">
+      <div class="panel-content">
+        <div class="heatmap" id="heatmap"></div>
+      </div>
+    </div>
+
+    <!-- Panel 4: Live Trace Log -->
+    <div class="panel" data-label="Live Trace Log">
+      <div class="panel-content">
+        <div class="log-stream" id="trace-log"></div>
+      </div>
+    </div>
+
+    <!-- Panel 5: Anomaly + Services -->
+    <div class="panel alert" data-label="Anomaly Detection">
+      <div class="panel-content">
+        <div class="anom-grid" id="anomaly-content">
+          <div class="anom-card crit">
+            <div class="anom-title glow-red">[PHANTOM STALL] Kilo: 0 min active spans</div>
+            <div class="anom-detail">Threshold: 30 min critical / 60 min kill</div>
+          </div>
+          <div class="anom-card warn">
+            <div class="anom-title glow-amber">[GHOST AGENT] Beau: last span &gt;30 min ago</div>
+            <div class="anom-detail">VPS cron may be stale</div>
+          </div>
+          <div class="anom-card ok">
+            <div class="anom-title glow-cyan">[LOOP DETECT] No loops detected (5 spans/5min threshold)</div>
+            <div class="anom-detail">Last check: <span id="last-check">--</span></div>
+          </div>
+        </div>
+        <div style="margin-top:10px; color:var(--text-dim); font-size:9px; text-transform:uppercase; letter-spacing:1px;">Services</div>
+        <div class="svc-grid" id="svc-grid"></div>
+      </div>
+    </div>
+
+    <!-- Panel 6: Recent Traces + Mini Tree -->
+    <div class="panel" data-label="Recent Traces">
+      <div class="panel-content">
+        <table class="trace-table" id="trace-table">
+          <thead><tr><th>Trace ID</th><th>Root Op</th><th>Dur</th><th>Spans</th><th>Status</th></tr></thead>
+          <tbody id="trace-tbody"></tbody>
+        </table>
+        <div style="margin-top:8px; color:var(--text-dim); font-size:9px; text-transform:uppercase; letter-spacing:1px;">Span Tree (last trace)</div>
+        <div class="mini-tree" id="mini-tree"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const JAEGER = '/jaeger'; // served from same origin by embedded proxy
+const SERVICE = 'edgeless-swarm';
+let history = [];
+let wfInterval;
+
+function fmtDur(us) {
+  if (us > 1e6) return (us/1e6).toFixed(1)+'s';
+  if (us > 1e3) return (us/1e3).toFixed(0)+'ms';
+  return us+'us';
+}
+function fmtTime(d) {
+  return d.toISOString().split('T')[1].split('.')[0];
+}
+function hashColor(str) {
+  let h = 0;
+  for (let i=0;i<str.length;i++) h = str.charCodeAt(i) + ((h<<5)-h);
+  const hue = Math.abs(h % 360);
+  return `hsl(${hue}, 70%, 60%)`;
+}
+
+async function fetchTraces(limit=200) {
+  const r = await fetch(`${JAEGER}/api/traces?service=${SERVICE}&limit=${limit}`);
+  if (!r.ok) throw new Error('Jaeger unreachable');
+  const d = await r.json();
+  return d.data || [];
+}
+async function fetchServices() {
+  const r = await fetch(`${JAEGER}/api/services`);
+  if (!r.ok) return [];
+  const d = await r.json();
+  return d.data || [];
+}
+
+function analyze(traces) {
+  const ops = {}, opDur = {}, spans = [];
+  let err = 0, total = 0;
+  for (const t of traces) {
+    for (const s of t.spans || []) {
+      total++;
+      const op = s.operationName || 'unknown';
+      ops[op] = (ops[op]||0)+1;
+      opDur[op] = opDur[op] || [];
+      opDur[op].push(s.duration || 0);
+      const tags = {};
+      for (const tag of s.tags || []) tags[tag.key] = tag.value;
+      if (tags.error === true || tags.error === 'true') err++;
+      for (const log of s.logs || []) {
+        for (const f of log.fields || []) {
+          if (f.key==='event' && String(f.value||'').toLowerCase().includes('exception')) err++;
+        }
+      }
+      spans.push({traceID: t.traceID, op, dur: s.duration, tags, startTime: s.startTime, spanID: s.spanID, references: s.references || []});
+    }
+  }
+  const sortedOps = Object.entries(ops).sort((a,b)=>b[1]-a[1]);
+  const latency = {};
+  for (const [op, durs] of Object.entries(opDur)) {
+    const sorted = durs.sort((a,b)=>a-b);
+    latency[op] = {
+      n: sorted.length,
+      p50: sorted[Math.floor(sorted.length*0.5)],
+      p95: sorted[Math.floor(sorted.length*0.95)] || sorted[sorted.length-1],
+      p99: sorted[Math.floor(sorted.length*0.99)] || sorted[sorted.length-1],
+      avg: sorted.reduce((a,b)=>a+b,0)/sorted.length
+    };
+  }
+  return { ops: sortedOps, latency, err, total, spans, traces };
+}
+
+/* === RENDERERS === */
+
+function renderMetrics(a) {
+  document.getElementById('m-traces').textContent = a.traces.length;
+  document.getElementById('m-spans').textContent = a.total;
+  const errPct = a.err ? (a.err/a.total*100).toFixed(1)+'%' : '0.0%';
+  document.getElementById('m-err').textContent = errPct;
+  document.getElementById('m-ops').textContent = a.ops.length;
+  document.getElementById('trace-count').textContent = a.traces.length;
+  document.getElementById('span-count').textContent = a.total;
+  document.getElementById('err-rate').textContent = errPct;
+
+  let agent = '-', model = '-', provider = '-';
+  if (a.spans.length) {
+    const last = a.spans[a.spans.length-1].tags;
+    agent = last['hermes.agent.name'] || last['agent.name'] || '-';
+    model = last['hermes.model'] || last['model'] || '-';
+    provider = last['hermes.provider'] || last['provider'] || '-';
+  }
+  document.getElementById('m-agent').textContent = agent;
+  document.getElementById('m-model').textContent = model;
+
+  // Mini sparklines inside metrics
+  const buckets = new Array(12).fill(0);
+  for (const t of a.traces) {
+    const s = t.spans && t.spans[0] ? t.spans[0].startTime : 0;
+    const age = Date.now()*1000 - s;
+    const idx = Math.min(11, Math.floor(age / (300*1e6)));
+    if (idx>=0 && idx<12) buckets[idx] += (t.spans||[]).length;
+  }
+  const max = Math.max(...buckets,1);
+  ['traces','spans','err','ops','agent','model'].forEach((key,i)=>{
+    const el = document.getElementById('spark-'+key);
+    el.innerHTML = '';
+    for (let j=11;j>=0;j--) {
+      const h = (buckets[j]/max*100);
+      const bar = document.createElement('div');
+      bar.className = 'm-bar' + ((key==='err' && i%3===0) ? ' err' : '');
+      bar.style.height = Math.max(2,h)+'%';
+      bar.style.opacity = .4 + (j/11)*.6;
+      el.appendChild(bar);
+    }
+  });
+
+  // Gauges
+  const slowOps = Object.entries(a.latency).filter(([op,lat])=>lat.p95>1e6).length;
+  const slowPct = a.ops.length ? Math.round(slowOps/a.ops.length*100) : 0;
+  document.getElementById('gauge-success').style.width = (100 - (a.err/a.total*100||0))+'%';
+  document.getElementById('gauge-success-pct').textContent = (100 - (a.err/a.total*100||0)).toFixed(0)+'%';
+  document.getElementById('gauge-slow').style.width = slowPct+'%';
+  document.getElementById('gauge-slow-pct').textContent = slowPct+'%';
+}
+
+function renderDonut(a) {
+  const ops = a.ops.slice(0,6);
+  const total = a.total;
+  const colors = ops.map(([op])=>hashColor(op));
+  let grad = []; let acc = 0;
+  for (let i=0;i<ops.length;i++) {
+    const pct = (ops[i][1]/total*100);
+    grad.push(`${colors[i]} ${acc.toFixed(2)}% ${(acc+pct).toFixed(2)}%`);
+    acc += pct;
+  }
+  const donut = document.getElementById('donut-ops');
+  donut.style.background = `conic-gradient(${grad.join(', ')}, var(--bg-panel) ${acc.toFixed(2)}% 100%)`;
+  donut.setAttribute('data-pct', ops.length ? Math.round(ops[0][1]/total*100)+'%' : '-');
+
+  const leg = document.getElementById('donut-legend');
+  leg.innerHTML = '';
+  for (let i=0;i<ops.length;i++) {
+    const [op, cnt] = ops[i];
+    const row = document.createElement('div'); row.className = 'leg';
+    row.innerHTML = `<div class="leg-dot" style="background:${colors[i]}"></div><div class="leg-name">${op}</div><div class="leg-val">${cnt}</div>`;
+    leg.appendChild(row);
+  }
+}
+
+function renderSparkline(a) {
+  const box = document.getElementById('spark-box');
+  box.innerHTML = '';
+  const buckets = new Array(20).fill(0);
+  const errBuckets = new Array(20).fill(0);
+  const now = Date.now() * 1000;
+  for (const t of a.traces) {
+    const s = t.spans && t.spans[0] ? (t.spans[0].startTime || 0) : 0;
+    const age = now - s;
+    const idx = Math.min(19, Math.floor(age / (300*1e6)));
+    if (idx >= 0 && idx < 20) {
+      buckets[idx] += (t.spans || []).length;
+      for (const s of t.spans || []) {
+        const tags = {};
+        for (const tag of s.tags || []) tags[tag.key] = tag.value;
+        if (tags.error === true) errBuckets[idx]++;
+      }
+    }
+  }
+  const max = Math.max(...buckets, 1);
+  for (let i=19; i>=0; i--) {
+    const h = (buckets[i]/max*100);
+    const bar = document.createElement('div');
+    bar.className = 'spark-bar' + (errBuckets[i] ? ' err' : '');
+    bar.style.height = Math.max(2, h) + '%';
+    bar.title = `T-${(19-i)*5}min: ${buckets[i]} spans${errBuckets[i]?' '+errBuckets[i]+' errors':''}`;
+    box.appendChild(bar);
+  }
+}
+
+function renderOpChart(a) {
+  const chart = document.getElementById('op-chart');
+  chart.innerHTML = '';
+  const max = a.ops[0] ? a.ops[0][1] : 1;
+  for (const [op, cnt] of a.ops.slice(0, 12)) {
+    const row = document.createElement('div'); row.className = 'bar-row';
+    const label = document.createElement('div'); label.className = 'bar-label'; label.textContent = op;
+    const track = document.createElement('div'); track.className = 'bar-track';
+    const fill = document.createElement('div'); fill.className = 'bar-fill';
+    const lat = a.latency[op];
+    if (lat && lat.p95 > 500000) fill.classList.add('slow');
+    else if (lat && lat.p95 > 100000) fill.classList.add('med');
+    fill.style.width = (cnt/max*100)+'%';
+    const val = document.createElement('span'); val.className = 'bar-val'; val.textContent = cnt;
+    track.appendChild(fill); track.appendChild(val);
+    row.appendChild(label); row.appendChild(track);
+    chart.appendChild(row);
+  }
+}
+
+function renderHeatmap(a) {
+  const grid = document.getElementById('heatmap');
+  grid.innerHTML = '';
+  const head = document.createElement('div'); head.className = 'heatmap-cell heatmap-rowhead';
+  head.textContent = 'OPERATION'; grid.appendChild(head);
+  for (const h of ['P50','P95','AVG']) {
+    const el = document.createElement('div'); el.className = 'heatmap-cell heatmap-head'; el.textContent = h; grid.appendChild(el);
+  }
+  const ops = a.ops.slice(0, 12);
+  for (const [op, cnt] of ops) {
+    const lat = a.latency[op];
+    const rh = document.createElement('div'); rh.className = 'heatmap-cell heatmap-rowhead'; rh.textContent = op; grid.appendChild(rh);
+    for (const v of [lat.p50, lat.p95, lat.avg]) {
+      const el = document.createElement('div'); el.className = 'heatmap-cell';
+      el.textContent = fmtDur(v);
+      const intensity = Math.min(1, v / 500000);
+      if (intensity > 0.8) el.style.background = 'rgba(255,77,77,'+(intensity*0.3)+')';
+      else if (intensity > 0.3) el.style.background = 'rgba(255,176,0,'+(intensity*0.3)+')';
+      else el.style.background = 'rgba(0,229,255,'+(intensity*0.2)+')';
+      el.style.color = intensity > 0.5 ? '#fff' : '';
+      grid.appendChild(el);
+    }
+  }
+}
+
+function renderLog(a) {
+  const log = document.getElementById('trace-log');
+  const entries = a.spans.slice(-40).reverse();
+  log.innerHTML = entries.map(s => {
+    const ts = fmtTime(new Date((s.startTime||0)/1000));
+    const hasErr = s.tags && s.tags.error;
+    const sev = hasErr ? 'err' : 'ok';
+    const sevText = hasErr ? 'ERR' : 'OK';
+    return `<div class="log-entry"><span class="log-time">${ts}</span><span class="log-sev ${sev}">${sevText}</span><span class="log-op glow-cyan">${s.op}</span><span class="log-dur">${fmtDur(s.dur)}</span><span class="log-id">${s.traceID.slice(0,16)}</span></div>`;
+  }).join('');
+}
+
+function renderTraces(a) {
+  const tbody = document.getElementById('trace-tbody');
+  tbody.innerHTML = '';
+  const recent = a.traces.slice(-12).reverse();
+  for (const t of recent) {
+    const spans = t.spans || [];
+    const dur = spans.length ? Math.max(...spans.map(s=>s.startTime+s.duration)) - Math.min(...spans.map(s=>s.startTime)) : 0;
+    let hasErr = false;
+    for (const s of spans) {
+      const tags = {};
+      for (const tag of s.tags || []) tags[tag.key] = tag.value;
+      if (tags.error === true) hasErr = true;
+    }
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="log-id">${t.traceID.slice(0,16)}...</td>
+      <td class="glow-cyan">${spans[0] ? spans[0].operationName : '-'}</td>
+      <td>${fmtDur(dur)}</td>
+      <td>${spans.length}</td>
+      <td>${hasErr ? '<span class="glow-red">ERROR</span>' : '<span class="glow-cyan">CLEAN</span>'}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+function renderMiniTree(a) {
+  const tree = document.getElementById('mini-tree');
+  tree.innerHTML = '';
+  if (!a.traces.length) return;
+  const t = a.traces[a.traces.length-1];
+  const spans = (t.spans || []).slice(0, 8);
+  // Build parent map
+  const spanMap = {};
+  for (const s of spans) spanMap[s.spanID] = s;
+  const children = {};
+  for (const s of spans) {
+    let parent = null;
+    for (const ref of s.references || []) {
+      if (ref.refType === 'CHILD_OF') parent = ref.spanID;
+    }
+    if (parent && spanMap[parent]) {
+      children[parent] = children[parent] || [];
+      children[parent].push(s);
+    }
+  }
+  const roots = spans.filter(s => {
+    for (const ref of s.references || []) if (ref.refType === 'CHILD_OF') return false;
+    return true;
+  });
+  for (const r of roots) {
+    const node = document.createElement('div'); node.className = 'tree-node root';
+    node.innerHTML = `<span class="glow-cyan">${r.operationName}</span><span class="tree-dur">${fmtDur(r.duration)}</span>`;
+    tree.appendChild(node);
+    for (const c of (children[r.spanID] || [])) {
+      const child = document.createElement('div'); child.className = 'tree-node';
+      child.innerHTML = `<span class="glow-dim">${c.operationName}</span><span class="tree-dur">${fmtDur(c.duration)}</span>`;
+      tree.appendChild(child);
+    }
+  }
+}
+
+function renderServices(services) {
+  const grid = document.getElementById('svc-grid');
+  grid.innerHTML = '';
+  const known = {
+    'edgeless-swarm': {detail: 'Main swarm'},
+    'jaeger-all-in-one': {detail: 'Collector'},
+    'ingestion.youtube': {detail: 'YouTube pipeline'},
+    'ingestion.rss': {detail: 'RSS pipeline'},
+    'claude-code': {detail: 'Claude Code sessions'},
+  };
+  for (const s of services) {
+    const info = known[s] || {detail: 'Unknown'};
+    const box = document.createElement('div'); box.className = 'svc-box';
+    box.innerHTML = `
+      <div class="svc-header"><div class="svc-dot on"></div><div class="svc-name">${s}</div></div>
+      <div class="svc-detail">${info.detail}</div>
+    `;
+    grid.appendChild(box);
+  }
+}
+
+function renderWaveform() {
+  const wf = document.getElementById('waveform');
+  wf.innerHTML = '';
+  for (let i = 0; i < 40; i++) {
+    const bar = document.createElement('div'); bar.className = 'wave-bar';
+    bar.style.height = '4px';
+    bar.style.opacity = '.4';
+    wf.appendChild(bar);
+  }
+  if (wfInterval) clearInterval(wfInterval);
+  // No random animation — updateWaveform() drives this from real history
+}
+
+function updateWaveform() {
+  const wf = document.getElementById('waveform');
+  const bars = wf.querySelectorAll('.wave-bar');
+  if (!history.length || bars.length === 0) return;
+
+  // Compute spans-per-second deltas from history
+  const rates = [];
+  for (let i = 1; i < history.length; i++) {
+    const dt = (history[i].t - history[i-1].t) / 1000; // seconds
+    const ds = history[i].spans - history[i-1].spans;
+    rates.push({ rate: dt > 0 ? ds / dt : 0, err: history[i].err });
+  }
+  if (rates.length === 0) return;
+
+  const maxRate = Math.max(...rates.map(r => r.rate), 0.1);
+  const visible = rates.slice(-40); // last 40 data points
+
+  for (let i = 0; i < bars.length; i++) {
+    const idx = visible.length - bars.length + i;
+    if (idx >= 0) {
+      const r = visible[idx];
+      const h = Math.max(4, (r.rate / maxRate) * 100);
+      bars[i].style.height = h + '%';
+      bars[i].style.opacity = Math.min(1, 0.3 + (r.rate / maxRate) * 0.7);
+      // Color coding
+      if (r.err > 0) bars[i].style.background = 'var(--red)';
+      else if (r.rate > maxRate * 0.8) bars[i].style.background = 'var(--amber)';
+      else bars[i].style.background = 'var(--cyan)';
+    } else {
+      bars[i].style.height = '4px';
+      bars[i].style.opacity = '.2';
+      bars[i].style.background = 'var(--cyan)';
+    }
+  }
+}
+
+/* === MAIN TICK === */
+async function tick() {
+  try {
+    document.getElementById('jaeger-status').textContent = 'POLLING';
+    const [traces, services] = await Promise.all([fetchTraces(200), fetchServices()]);
+    document.getElementById('jaeger-status').textContent = 'ONLINE';
+    document.getElementById('svc-count').textContent = services.length;
+    const a = analyze(traces);
+    renderMetrics(a);
+    renderDonut(a);
+    renderSparkline(a);
+    renderOpChart(a);
+    renderHeatmap(a);
+    renderLog(a);
+    renderTraces(a);
+    renderMiniTree(a);
+    renderServices(services);
+    document.getElementById('last-check').textContent = fmtTime(new Date());
+    history.push({t: Date.now(), traces: a.traces.length, spans: a.total, err: a.err});
+    if (history.length > 50) history.shift();
+    updateWaveform(); // real data, not noise
+  } catch (e) {
+    document.getElementById('jaeger-status').textContent = 'OFFLINE';
+    console.error(e);
+  }
+}
+
+setInterval(() => {
+  document.getElementById('clock').textContent = fmtTime(new Date());
+}, 1000);
+
+tick();
+renderWaveform();
+setInterval(tick, 10000);
+</script>
+</body>
+</html>
