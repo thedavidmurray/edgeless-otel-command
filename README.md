@@ -26,22 +26,14 @@ Real-time monitoring of your agent swarm telemetry — tool calls, ingestion pip
 
 ## Install
 
-### macOS
+See [SETUP.md](SETUP.md) for detailed setup instructions for any OTel service.
 
-Download `EDGELESS OTEL Command-x.x.x.dmg`, double-click, drag to Applications.
+Quick start:
 
-### Windows
-
-Download `EDGELESS OTEL Command Setup-x.x.x.exe`, run installer.
-
-### Linux
-
-Download `EDGELESS OTEL Command-x.x.x.AppImage`, make executable:
-
-```bash
-chmod +x EDGELESS_OTEL_Command-x.x.x.AppImage
-./EDGELESS_OTEL_Command-x.x.x.AppImage
-```
+1. Start Jaeger: `docker run -d --name jaeger -p 16686:16686 -p 4317:4317 jaegertracing/all-in-one:1.60`
+2. Wire your service with OTLP exporter to `http://localhost:4317`
+3. Download the app from [Releases](https://github.com/thedavidmurray/edgeless-otel-command/releases)
+4. Open it. Done.
 
 ## Build from Source
 
