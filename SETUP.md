@@ -30,9 +30,105 @@ Verify: open http://localhost:16686 and see the Jaeger UI.
 
 ---
 
-## 2. Wire Your Service to Jaeger
+## 2. QUICK START: Agent Frameworks
 
-### Python
+If you run AI agents (Claude Code, Codex CLI, Hermes, Aider, etc.), here is the fastest path.
+
+### Claude Code / Codex CLI / Any Terminal Agent
+
+We provide a drop-in wrapper. Every session becomes a trace.
+
+```bash
+# 1. Install the wrapper (one-liner)
+curl -fsSL https://raw.githubusercontent.com/thedavidmurray/edgeless-otel-command/main/scripts/install-claude-wrapper.sh | bash
+
+# 2. Use it exactly like the normal claude command
+claude-otel "refactor auth module"
+claude-otel -- Dangerously delete everything
+```
+
+What you get:
+- Root span `claude.session` per invocation
+- Child spans for every file modified (pre/post git diff)
+- Child span `claude.git.commit` if a commit happens
+- Service name = `claude-code` in the dashboard
+
+**Manual install** (if you prefer):
+
+```bash
+cd your-project
+curl -O https://raw.githubusercontent.com/thedavidmurray/edgeless-otel-command/main/scripts/claude_otel_wrapper.py
+chmod +x claude_otel_wrapper.py
+# Add alias to your shell
+alias claude='python3 /path/to/claude_otel_wrapper.py'
+```
+
+### Hermes Multi-Agent Swarm
+
+Add one line to your Hermes startup files.
+
+```bash
+# Find your Hermes install
+HERMES_VENV=$(python3 -c "import hermes_cli; print(hermes_cli.__path__[0])" 2>/dev/null || echo "~/.hermes/hermes-agent/venv")
+
+# Patch the two entry points
+echo "import scripts.lib.hermes_otel_activate" >> "$HERMES_VENV/../cli.py"
+echo "import scripts.lib.hermes_otel_activate" >> "$HERMES_VENV/../gateway/run.py"
+
+# Add path injection so Hermes can find the module
+mkdir -p "$HERMES_VENV/lib/python3.11/site-packages"
+echo "/path/to/your/otel/scripts" > "$HERMES_VENV/lib/python3.11/site-packages/otel_pth.pth"
+```
+
+**Or copy our files directly:**
+
+```bash
+# Download the two files
+curl -O https://raw.githubusercontent.com/thedavidmurray/edgeless-otel-command/main/scripts/hermes_otel_patch.py
+curl -O https://raw.githubusercontent.com/thedavidmurray/edgeless-otel-command/main/scripts/hermes_otel_activate.py
+
+# Put them anywhere on PYTHONPATH
+mkdir -p ~/.local/lib/edgeless-otel
+cp hermes_otel_patch.py hermes_otel_activate.py ~/.local/lib/edgeless-otel/
+echo "~/.local/lib/edgeless-otel" > $(python3 -c "import site; print(site.getsitepackages()[0])")/edgeless_otel.pth
+```
+
+Then restart your Hermes gateway:
+
+```bash
+hermes gateway stop
+hermes gateway run --profile your-agent
+```
+
+Every tool call (`terminal`, `read_file`, `patch`, `web_extract`, etc.) now emits a span. The dashboard shows `hermes.tool.*` operations with agent identity attached.
+
+### Other Agents (Aider, Devin, etc.)
+
+If your agent is Python-based, add this anywhere it starts:
+
+```python
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.resources import Resource
+
+provider = TracerProvider(resource=Resource.create({"service.name": "your-agent"}))
+exporter = OTLPSpanExporter(endpoint="http://localhost:4317", insecure=True)
+provider.add_span_processor(BatchSpanProcessor(exporter))
+trace.set_tracer_provider(provider)
+
+# Then wrap your agent loop
+tracer = trace.get_tracer("agent")
+with tracer.start_as_current_span("agent.turn"):
+    run_agent_loop()
+```
+
+If your agent is not Python, instrument it with the [OTel SDK for your language](https://opentelemetry.io/docs/languages/). Point at `http://localhost:4317`.
+
+---
+
+## 3. Generic Service Setup (Python, Node, Go, etc.)
 
 ```python
 from opentelemetry import trace
@@ -92,7 +188,7 @@ Any language with an OTLP exporter works. Point at `http://localhost:4317` (gRPC
 
 ---
 
-## 3. Install the Dashboard App
+## 4. Install the Dashboard App
 
 ### macOS
 
@@ -113,7 +209,7 @@ chmod +x EDGELESS_OTEL_Command-x.x.x.AppImage
 
 ---
 
-## 4. Point App at Your Jaeger (if not localhost:16686)
+## 5. Point App at Your Jaeger (if not localhost:16686)
 
 The app proxies to `http://localhost:16687` by default.
 
@@ -131,7 +227,7 @@ Then launch the app.
 
 ---
 
-## 5. What You Will See
+## 6. What You Will See
 
 The dashboard auto-discovers **all services** registered in Jaeger. The left panels default to the service named `edgeless-swarm` if present. If not, it shows the first service alphabetically.
 
@@ -150,7 +246,7 @@ The dashboard auto-discovers **all services** registered in Jaeger. The left pan
 
 ---
 
-## 6. Customizing the Anomaly Panel
+## 7. Customizing the Anomaly Panel
 
 The three anomaly cards are **demo placeholders** based on our swarm:
 
@@ -171,7 +267,7 @@ Or replace the static cards with a dynamic query against your own health endpoin
 
 ---
 
-## 7. Making Your Spans Richer
+## 8. Making Your Spans Richer
 
 If you add these attributes to your spans, the dashboard surfaces more detail:
 
@@ -188,7 +284,7 @@ Any span with `error=true` turns that interval red in the throughput waveform an
 
 ---
 
-## 8. Multiple Services
+## 9. Multiple Services
 
 The dashboard queries **one** primary service for the main panels (traces, spans, ops, heatmap). It defaults to `edgeless-swarm`. The services grid below shows **all** services.
 

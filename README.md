@@ -28,12 +28,18 @@ Real-time monitoring of your agent swarm telemetry — tool calls, ingestion pip
 
 See [SETUP.md](SETUP.md) for detailed setup instructions for any OTel service.
 
-Quick start:
+Quick start for **any** OTel service:
 
 1. Start Jaeger: `docker run -d --name jaeger -p 16686:16686 -p 4317:4317 jaegertracing/all-in-one:1.60`
-2. Wire your service with OTLP exporter to `http://localhost:4317`
+2. Wire your service (see [SETUP.md](SETUP.md) for Claude Code, Codex CLI, Hermes, Aider, Python, Node, Go, etc.)
 3. Download the app from [Releases](https://github.com/thedavidmurray/edgeless-otel-command/releases)
 4. Open it. Done.
+
+Agent frameworks covered in SETUP.md:
+- **Claude Code / Codex CLI** — drop-in wrapper `claude-otel`
+- **Hermes** — one-line import `hermes_otel_activate`
+- **Aider, Devin, custom Python agents** — OTel SDK snippet
+- **Any language** — Python, Node.js, Go, Java, .NET, Rust
 
 ## Build from Source
 
