@@ -5,23 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EDGELESS :: OTEL COMMAND</title>
 <style>
-/* === RESTRICTED PALETTE === */
-:root {
-  --bg:         #070a07;
-  --bg-panel:   #0d120d;
-  --border-red: #c43e3e;
-  --border-cyan:#2a9d8f;
-  --text-dim:   #2d4a2d;
-  --text-med:   #5a8a5a;
-  --text-bright:#8fbc8f;
-  --red:        #ff4d4d;
-  --red-dim:    #8b2222;
-  --cyan:       #00e5ff;
-  --cyan-dim:   #006b7a;
-  --amber:      #ffb000;
-  --amber-dim:  #8a6000;
-  --grid:       #112211;
-}
+/* NOTE: All color variables are now in themes.css for multi-theme support */
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -255,7 +239,7 @@ main {
   opacity: .15; pointer-events: none; z-index: 5;
   animation: scan 3s linear infinite;
 }
-</style>
+<link rel="stylesheet" href="themes.css">
 </head>
 <body>
 <div id="app" class="flicker">
@@ -270,6 +254,15 @@ main {
       <span id="clock" class="glow-dim">--:--:--</span>
     </div>
   </header>
+  <div id="theme-switcher">
+    <span class="theme-label">Skin</span>
+    <div class="theme-btn active" data-theme="phosphor" title="Phosphor (default)"></div>
+    <div class="theme-btn" data-theme="cyberpunk" title="Cyberpunk"></div>
+    <div class="theme-btn" data-theme="military" title="Military HUD"></div>
+    <div class="theme-btn" data-theme="amber" title="Amber Terminal"></div>
+    <div class="theme-btn" data-theme="matrix" title="Matrix"></div>
+    <div class="theme-btn" data-theme="minimal" title="Minimal"></div>
+  </div>
   <main>
     <!-- Panel 1: Metrics + Donut + Sparkline -->
     <div class="panel grid-bg" data-label="Throughput & Metrics">
@@ -790,6 +783,29 @@ async function tick() {
 setInterval(() => {
   document.getElementById('clock').textContent = fmtTime(new Date());
 }, 1000);
+
+/* === THEME SYSTEM === */
+const THEME_KEY = 'edgeless-otel-theme';
+const DEFAULT_THEME = 'phosphor';
+
+function applyTheme(name) {
+  document.documentElement.setAttribute('data-theme', name);
+  document.querySelectorAll('#theme-switcher .theme-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.theme === name);
+  });
+  try { localStorage.setItem(THEME_KEY, name); } catch (e) {}
+}
+
+function initTheme() {
+  let saved;
+  try { saved = localStorage.getItem(THEME_KEY); } catch (e) {}
+  applyTheme(saved || DEFAULT_THEME);
+
+  document.querySelectorAll('#theme-switcher .theme-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
+  });
+}
+initTheme();
 
 tick();
 renderWaveform();

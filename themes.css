@@ -1,0 +1,234 @@
+/* ================================================================
+   EDGELESS OTEL COMMAND — THEME SYSTEM
+   All aesthetic packs use CSS custom properties only.
+   No structural changes between themes.
+   ================================================================ */
+
+/* ── Base structure (never changes) ── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  font-family: 'Courier New', Courier, 'Lucida Console', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text-bright);
+}
+
+/* ── THEME: PHOSPHOR (default) ── */
+[data-theme="phosphor"],
+:root {
+  --bg:         #070a07;
+  --bg-panel:   #0d120d;
+  --border-red: #c43e3e;
+  --border-cyan:#2a9d8f;
+  --text-dim:   #2d4a2d;
+  --text-med:   #5a8a5a;
+  --text-bright:#8fbc8f;
+  --red:        #ff4d4d;
+  --red-dim:    #8b2222;
+  --cyan:       #00e5ff;
+  --cyan-dim:   #006b7a;
+  --amber:      #ffb000;
+  --amber-dim:  #8a6000;
+  --grid:       #112211;
+  --crt-scan:   rgba(0,0,0,0.18);
+  --crt-vignette:rgba(0,20,0,0.5);
+  --font-body:  'Courier New', Courier, monospace;
+  --font-header:'Courier New', Courier, monospace;
+  --panel-radius: 0px;
+  --border-width: 1px;
+  --glow-intensity: 1.0;
+}
+
+/* ── THEME: CYBERPUNK ── */
+[data-theme="cyberpunk"] {
+  --bg:         #0a0014;
+  --bg-panel:   #120024;
+  --border-red: #ff0055;
+  --border-cyan:#00f0ff;
+  --text-dim:   #4a2d5a;
+  --text-med:   #8a5aaa;
+  --text-bright:#e0a0ff;
+  --red:        #ff2a6d;
+  --red-dim:    #8b0044;
+  --cyan:       #05d9e8;
+  --cyan-dim:   #005577;
+  --amber:      #d300f9;
+  --amber-dim:  #770088;
+  --grid:       #221133;
+  --crt-scan:   rgba(0,0,0,0.22);
+  --crt-vignette:rgba(20,0,30,0.6);
+  --font-body:  'Courier New', Courier, monospace;
+  --font-header:'Impact', 'Arial Black', sans-serif;
+  --panel-radius: 4px;
+  --border-width: 2px;
+  --glow-intensity: 1.5;
+}
+
+/* ── THEME: MILITARY HUD ── */
+[data-theme="military"] {
+  --bg:         #0d1108;
+  --bg-panel:   #141a0e;
+  --border-red: #8b4513;
+  --border-cyan:#6b8e23;
+  --text-dim:   #3a4a2a;
+  --text-med:   #6b8e5a;
+  --text-bright:#aacc88;
+  --red:        #cc5500;
+  --red-dim:    #773300;
+  --cyan:       #9acd32;
+  --cyan-dim:   #4a6b12;
+  --amber:      #daa520;
+  --amber-dim:  #886600;
+  --grid:       #1a2211;
+  --crt-scan:   rgba(0,0,0,0.15);
+  --crt-vignette:rgba(10,20,0,0.4);
+  --font-body:  'Courier New', Courier, monospace;
+  --font-header:'Courier New', Courier, monospace;
+  --panel-radius: 0px;
+  --border-width: 1px;
+  --glow-intensity: 0.7;
+}
+
+/* ── THEME: AMBER TERMINAL ── */
+[data-theme="amber"] {
+  --bg:         #0a0a00;
+  --bg-panel:   #121000;
+  --border-red: #b8860b;
+  --border-cyan:#d4a017;
+  --text-dim:   #4a4018;
+  --text-med:   #8a7a30;
+  --text-bright:#ffb000;
+  --red:        #ff6600;
+  --red-dim:    #883300;
+  --cyan:       #ffcc00;
+  --cyan-dim:   #886600;
+  --amber:      #ffd700;
+  --amber-dim:  #aa8800;
+  --grid:       #221a00;
+  --crt-scan:   rgba(0,0,0,0.2);
+  --crt-vignette:rgba(30,20,0,0.5);
+  --font-body:  'VT323', 'Courier New', monospace;
+  --font-header:'VT323', 'Courier New', monospace;
+  --panel-radius: 0px;
+  --border-width: 1px;
+  --glow-intensity: 1.2;
+}
+
+/* ── THEME: MATRIX ── */
+[data-theme="matrix"] {
+  --bg:         #000000;
+  --bg-panel:   #001100;
+  --border-red: #003300;
+  --border-cyan:#00ff00;
+  --text-dim:   #003300;
+  --text-med:   #006600;
+  --text-bright:#00cc00;
+  --red:        #ff0000;
+  --red-dim:    #660000;
+  --cyan:       #00ff41;
+  --cyan-dim:   #008800;
+  --amber:      #55ff55;
+  --amber-dim:  #228822;
+  --grid:       #001a00;
+  --crt-scan:   rgba(0,255,0,0.03);
+  --crt-vignette:rgba(0,30,0,0.3);
+  --font-body:  'Courier New', Courier, monospace;
+  --font-header:'Courier New', Courier, monospace;
+  --panel-radius: 0px;
+  --border-width: 1px;
+  --glow-intensity: 1.3;
+}
+
+/* ── THEME: MINIMAL ── */
+[data-theme="minimal"] {
+  --bg:         #111111;
+  --bg-panel:   #1a1a1a;
+  --border-red: #666666;
+  --border-cyan:#999999;
+  --text-dim:   #444444;
+  --text-med:   #777777;
+  --text-bright:#cccccc;
+  --red:        #ff4444;
+  --red-dim:    #883333;
+  --cyan:       #44aaff;
+  --cyan-dim:   #226688;
+  --amber:      #ffaa44;
+  --amber-dim:  #886622;
+  --grid:       #222222;
+  --crt-scan:   transparent;
+  --crt-vignette:transparent;
+  --font-body:  'SF Mono', 'Menlo', monospace;
+  --font-header:'SF Mono', 'Menlo', monospace;
+  --panel-radius: 6px;
+  --border-width: 1px;
+  --glow-intensity: 0.0;
+}
+
+/* ── CRT effects (theme-aware) ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, var(--crt-scan) 0px, var(--crt-scan) 1px, transparent 1px, transparent 2px);
+  pointer-events: none; z-index: 9999; mix-blend-mode: multiply;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, var(--crt-vignette) 100%);
+  pointer-events: none; z-index: 9998;
+}
+
+/* ── Font overrides per theme ── */
+header .title { font-family: var(--font-header) !important; }
+body { font-family: var(--font-body); }
+
+/* ── Panel radius per theme ── */
+.panel {
+  border-radius: var(--panel-radius);
+  border-width: var(--border-width);
+}
+
+/* ── Glow intensity scaling ── */
+.glow-red   { text-shadow: 0 0 calc(4px * var(--glow-intensity)) var(--red-dim),   0 0 calc(10px * var(--glow-intensity)) var(--red); }
+.glow-cyan  { text-shadow: 0 0 calc(4px * var(--glow-intensity)) var(--cyan-dim),  0 0 calc(10px * var(--glow-intensity)) var(--cyan); }
+.glow-amber { text-shadow: 0 0 calc(4px * var(--glow-intensity)) var(--amber-dim), 0 0 calc(10px * var(--glow-intensity)) var(--amber); }
+.glow-dim   { text-shadow: 0 0 calc(2px * var(--glow-intensity)) var(--text-dim); }
+
+/* ── Theme switcher UI ── */
+#theme-switcher {
+  position: fixed;
+  top: 8px;
+  right: 12px;
+  z-index: 10000;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+#theme-switcher .theme-btn {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--text-med);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+  position: relative;
+}
+#theme-switcher .theme-btn:hover { transform: scale(1.2); border-color: var(--text-bright); }
+#theme-switcher .theme-btn.active { border-color: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+#theme-switcher .theme-btn[data-theme="phosphor"]   { background: #00e5ff; }
+#theme-switcher .theme-btn[data-theme="cyberpunk"] { background: #ff0055; }
+#theme-switcher .theme-btn[data-theme="military"]   { background: #6b8e23; }
+#theme-switcher .theme-btn[data-theme="amber"]     { background: #ffb000; }
+#theme-switcher .theme-btn[data-theme="matrix"]    { background: #00ff41; }
+#theme-switcher .theme-btn[data-theme="minimal"]   { background: #999999; }
+
+#theme-switcher .theme-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  margin-right: 4px;
+}

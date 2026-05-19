@@ -31,6 +31,15 @@ function startProxyServer() {
       });
       return;
     }
+    if (req.url === '/themes.css') {
+      const cssPath = path.join(__dirname, 'themes.css');
+      fs.readFile(cssPath, (err, data) => {
+        if (err) { res.writeHead(500); res.end('Error loading themes'); return; }
+        res.writeHead(200, { 'Content-Type': 'text/css' });
+        res.end(data);
+      });
+      return;
+    }
 
     // Proxy /jaeger/* to Jaeger
     if (req.url.startsWith('/jaeger/')) {
