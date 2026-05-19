@@ -64,12 +64,13 @@ function startProxyServer() {
       '/index.html': { file: 'index.html', mime: 'text/html' },
       '/themes.css': { file: 'themes.css', mime: 'text/css' },
       '/app.js': { file: 'app.js', mime: 'application/javascript' },
+      '/theme-builder.html': { file: 'theme-builder.html', mime: 'text/html' },
     };
-    if (req.url === '/theme-builder.html') {
-      const htmlPath = path.join(__dirname, 'theme-builder.html');
-      fs.readFile(htmlPath, (err, data) => {
-        if (err) { res.writeHead(500); res.end('Error loading theme builder'); return; }
-        res.writeHead(200, { 'Content-Type': 'text/html' });
+    if (staticRoutes[req.url]) {
+      const { file, mime } = staticRoutes[req.url];
+      fs.readFile(path.join(__dirname, file), (err, data) => {
+        if (err) { res.writeHead(500); res.end(`Error loading ${file}`); return; }
+        res.writeHead(200, { 'Content-Type': mime });
         res.end(data);
       });
       return;
