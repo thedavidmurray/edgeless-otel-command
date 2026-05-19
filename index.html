@@ -807,6 +807,38 @@ function initTheme() {
 }
 initTheme();
 
+/* === THEME BUILDER BRIDGE === */
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'theme') {
+    const t = e.data.data;
+    document.documentElement.style.setProperty('--bg', t.bg);
+    document.documentElement.style.setProperty('--bg-panel', t['bg-panel']);
+    document.documentElement.style.setProperty('--border-red', t['border-red']);
+    document.documentElement.style.setProperty('--border-cyan', t['border-cyan']);
+    document.documentElement.style.setProperty('--text-dim', t['text-dim']);
+    document.documentElement.style.setProperty('--text-med', t['text-med']);
+    document.documentElement.style.setProperty('--text-bright', t['text-bright']);
+    document.documentElement.style.setProperty('--red', t.red);
+    document.documentElement.style.setProperty('--red-dim', t['red-dim']);
+    document.documentElement.style.setProperty('--cyan', t.cyan);
+    document.documentElement.style.setProperty('--cyan-dim', t['cyan-dim']);
+    document.documentElement.style.setProperty('--amber', t.amber);
+    document.documentElement.style.setProperty('--amber-dim', t['amber-dim']);
+    document.documentElement.style.setProperty('--grid', t.grid);
+    document.documentElement.style.setProperty('--panel-radius', t['panel-radius'] + 'px');
+    document.documentElement.style.setProperty('--border-width', t['border-width'] + 'px');
+    document.documentElement.style.setProperty('--glow-intensity', t['glow-intensity']);
+    // CRT effects
+    const scan = t['crt-scan-opacity'] / 100;
+    const vig = t['vignette-opacity'] / 100;
+    document.documentElement.style.setProperty('--crt-scan', `rgba(0,0,0,${scan.toFixed(2)})`);
+    document.documentElement.style.setProperty('--crt-vignette', `rgba(0,0,0,${vig.toFixed(2)})`);
+    // Font
+    document.body.style.fontFamily = t.font;
+    document.querySelectorAll('header .title').forEach(el => el.style.fontFamily = t.font);
+  }
+});
+
 tick();
 renderWaveform();
 setInterval(tick, 10000);

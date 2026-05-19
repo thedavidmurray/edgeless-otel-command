@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDGELESS :: THEME BUILDER</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --builder-bg: #0a0a0a;
+  --builder-panel: #141414;
+  --builder-border: #333;
+  --builder-text: #ccc;
+  --builder-accent: #00e5ff;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--builder-bg);
+  color: var(--builder-text);
+  font-family: 'SF Mono', 'Menlo', 'Courier New', monospace;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+#app {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  height: 100vh;
+}
+
+/* ── CONTROLS PANEL ── */
+#controls {
+  background: var(--builder-panel);
+  border-right: 1px solid var(--builder-border);
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#controls h1 {
+  font-size: 14px;
+  color: var(--builder-accent);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+.control-group {
+  border: 1px solid var(--builder-border);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-group label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.control-group label span {
+  color: var(--builder-text);
+}
+
+.control-group input[type="color"] {
+  width: 40px;
+  height: 24px;
+  border: 1px solid var(--builder-border);
+  background: transparent;
+  cursor: pointer;
+}
+
+.control-group input[type="range"] {
+  width: 100%;
+  accent-color: var(--builder-accent);
+}
+
+.control-group select {
+  background: var(--builder-bg);
+  color: var(--builder-text);
+  border: 1px solid var(--builder-border);
+  padding: 4px;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+#actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+button {
+  background: var(--builder-bg);
+  color: var(--builder-accent);
+  border: 1px solid var(--builder-accent);
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+button:hover {
+  background: var(--builder-accent);
+  color: var(--builder-bg);
+}
+
+button.secondary {
+  border-color: var(--builder-border);
+  color: var(--builder-text);
+}
+
+button.secondary:hover {
+  background: var(--builder-border);
+  color: var(--builder-text);
+}
+
+/* ── PREVIEW ── */
+#preview {
+  position: relative;
+  overflow: hidden;
+}
+
+#preview-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+#preview-label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0,0,0,0.8);
+  padding: 4px 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--builder-accent);
+  border: 1px solid var(--builder-border);
+}
+
+/* ── JSON MODAL ── */
+#modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+}
+
+#modal.show { display: flex; }
+
+#modal-content {
+  background: var(--builder-panel);
+  border: 1px solid var(--builder-accent);
+  padding: 20px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#modal-content h2 {
+  font-size: 14px;
+  color: var(--builder-accent);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+#modal-content textarea {
+  background: var(--builder-bg);
+  color: var(--builder-text);
+  border: 1px solid var(--builder-border);
+  padding: 12px;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.6;
+  resize: none;
+  flex: 1;
+  min-height: 200px;
+}
+
+#modal-content .modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="controls">
+    <h1>EDGELESS :: THEME BUILDER</h1>
+
+    <div class="control-group">
+      <label><span>Preset</span></label>
+      <select id="preset">
+        <option value="">Custom</option>
+        <option value="phosphor">Phosphor</option>
+        <option value="cyberpunk">Cyberpunk</option>
+        <option value="military">Military HUD</option>
+        <option value="amber">Amber Terminal</option>
+        <option value="matrix">Matrix</option>
+        <option value="minimal">Minimal</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label><span>Background</span><input type="color" id="bg" value="#070a07"></label>
+      <label><span>Panel BG</span><input type="color" id="bg-panel" value="#0d120d"></label>
+    </div>
+
+    <div class="control-group">
+      <label><span>Border Red</span><input type="color" id="border-red" value="#c43e3e"></label>
+      <label><span>Border Cyan</span><input type="color" id="border-cyan" value="#2a9d8f"></label>
+    </div>
+
+    <div class="control-group">
+      <label><span>Text Dim</span><input type="color" id="text-dim" value="#2d4a2d"></label>
+      <label><span>Text Med</span><input type="color" id="text-med" value="#5a8a5a"></label>
+      <label><span>Text Bright</span><input type="color" id="text-bright" value="#8fbc8f"></label>
+    </div>
+
+    <div class="control-group">
+      <label><span>Red</span><input type="color" id="red" value="#ff4d4d"></label>
+      <label><span>Red Dim</span><input type="color" id="red-dim" value="#8b2222"></label>
+      <label><span>Cyan</span><input type="color" id="cyan" value="#00e5ff"></label>
+      <label><span>Cyan Dim</span><input type="color" id="cyan-dim" value="#006b7a"></label>
+      <label><span>Amber</span><input type="color" id="amber" value="#ffb000"></label>
+      <label><span>Amber Dim</span><input type="color" id="amber-dim" value="#8a6000"></label>
+    </div>
+
+    <div class="control-group">
+      <label><span>Grid</span><input type="color" id="grid" value="#112211"></label>
+    </div>
+
+    <div class="control-group">
+      <label><span>Font</span></label>
+      <select id="font">
+        <option value="'Courier New', Courier, monospace">Courier</option>
+        <option value="'VT323', 'Courier New', monospace">VT323</option>
+        <option value="'SF Mono', 'Menlo', monospace">SF Mono</option>
+        <option value="'Impact', 'Arial Black', sans-serif">Impact</option>
+        <option value="'Arial', sans-serif">Arial</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label><span>Border Width</span><input type="range" id="border-width" min="0" max="4" value="1"></label>
+      <label><span>Corner Radius</span><input type="range" id="panel-radius" min="0" max="12" value="0"></label>
+      <label><span>Glow Intensity</span><input type="range" id="glow-intensity" min="0" max="30" value="10"></label>
+    </div>
+
+    <div class="control-group">
+      <label><span>CRT Scanlines</span><input type="range" id="crt-scan-opacity" min="0" max="40" value="18"></label>
+      <label><span>Vignette</span><input type="range" id="vignette-opacity" min="0" max="80" value="50"></label>
+    </div>
+
+    <div id="actions">
+      <button id="btn-random">Randomize</button>
+      <button id="btn-export" class="secondary">Export CSS</button>
+      <button id="btn-json" class="secondary">Export JSON</button>
+      <button id="btn-import" class="secondary">Import JSON</button>
+    </div>
+  </div>
+
+  <div id="preview">
+    <div id="preview-label">Live Preview — Real Data</div>
+    <iframe id="preview-frame" src="index.html"></iframe>
+  </div>
+</div>
+
+<div id="modal">
+  <div id="modal-content">
+    <h2 id="modal-title">Export</h2>
+    <textarea id="modal-text" readonly></textarea>
+    <div class="modal-actions">
+      <button id="btn-copy">Copy</button>
+      <button id="btn-close" class="secondary">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Presets ──
+const PRESETS = {
+  phosphor: {
+    bg:'#070a07', 'bg-panel':'#0d120d', 'border-red':'#c43e3e', 'border-cyan':'#2a9d8f',
+    'text-dim':'#2d4a2d', 'text-med':'#5a8a5a', 'text-bright':'#8fbc8f',
+    red:'#ff4d4d', 'red-dim':'#8b2222', cyan:'#00e5ff', 'cyan-dim':'#006b7a',
+    amber:'#ffb000', 'amber-dim':'#8a6000', grid:'#112211',
+    font:"'Courier New', Courier, monospace", 'border-width':1, 'panel-radius':0, 'glow-intensity':10,
+    'crt-scan-opacity':18, 'vignette-opacity':50
+  },
+  cyberpunk: {
+    bg:'#0a0014', 'bg-panel':'#120024', 'border-red':'#ff0055', 'border-cyan':'#00f0ff',
+    'text-dim':'#4a2d5a', 'text-med':'#8a5aaa', 'text-bright':'#e0a0ff',
+    red:'#ff2a6d', 'red-dim':'#8b0044', cyan:'#05d9e8', 'cyan-dim':'#005577',
+    amber:'#d300f9', 'amber-dim':'#770088', grid:'#221133',
+    font:"'Courier New', Courier, monospace", 'border-width':2, 'panel-radius':4, 'glow-intensity':15,
+    'crt-scan-opacity':22, 'vignette-opacity':60
+  },
+  military: {
+    bg:'#0d1108', 'bg-panel':'#141a0e', 'border-red':'#8b4513', 'border-cyan':'#6b8e23',
+    'text-dim':'#3a4a2a', 'text-med':'#6b8e5a', 'text-bright':'#aacc88',
+    red:'#cc5500', 'red-dim':'#773300', cyan:'#9acd32', 'cyan-dim':'#4a6b12',
+    amber:'#daa520', 'amber-dim':'#886600', grid:'#1a2211',
+    font:"'Courier New', Courier, monospace", 'border-width':1, 'panel-radius':0, 'glow-intensity':7,
+    'crt-scan-opacity':15, 'vignette-opacity':40
+  },
+  amber: {
+    bg:'#0a0a00', 'bg-panel':'#121000', 'border-red':'#b8860b', 'border-cyan':'#d4a017',
+    'text-dim':'#4a4018', 'text-med':'#8a7a30', 'text-bright':'#ffb000',
+    red:'#ff6600', 'red-dim':'#883300', cyan:'#ffcc00', 'cyan-dim':'#886600',
+    amber:'#ffd700', 'amber-dim':'#aa8800', grid:'#221a00',
+    font:"'VT323', 'Courier New', monospace", 'border-width':1, 'panel-radius':0, 'glow-intensity':12,
+    'crt-scan-opacity':20, 'vignette-opacity':50
+  },
+  matrix: {
+    bg:'#000000', 'bg-panel':'#001100', 'border-red':'#003300', 'border-cyan':'#00ff00',
+    'text-dim':'#003300', 'text-med':'#006600', 'text-bright':'#00cc00',
+    red:'#ff0000', 'red-dim':'#660000', cyan:'#00ff41', 'cyan-dim':'#008800',
+    amber:'#55ff55', 'amber-dim':'#228822', grid:'#001a00',
+    font:"'Courier New', Courier, monospace", 'border-width':1, 'panel-radius':0, 'glow-intensity':13,
+    'crt-scan-opacity':3, 'vignette-opacity':30
+  },
+  minimal: {
+    bg:'#111111', 'bg-panel':'#1a1a1a', 'border-red':'#666666', 'border-cyan':'#999999',
+    'text-dim':'#444444', 'text-med':'#777777', 'text-bright':'#cccccc',
+    red:'#ff4444', 'red-dim':'#883333', cyan:'#44aaff', 'cyan-dim':'#226688',
+    amber:'#ffaa44', 'amber-dim':'#886622', grid:'#222222',
+    font:"'SF Mono', 'Menlo', monospace", 'border-width':1, 'panel-radius':6, 'glow-intensity':0,
+    'crt-scan-opacity':0, 'vignette-opacity':0
+  }
+};
+
+const IDS = ['bg','bg-panel','border-red','border-cyan','text-dim','text-med','text-bright',
+  'red','red-dim','cyan','cyan-dim','amber','amber-dim','grid'];
+
+// ── DOM refs ──
+const frame = document.getElementById('preview-frame');
+const inputs = {};
+IDS.forEach(id => inputs[id] = document.getElementById(id));
+['font','border-width','panel-radius','glow-intensity','crt-scan-opacity','vignette-opacity'].forEach(id => {
+  inputs[id] = document.getElementById(id);
+});
+const presetSelect = document.getElementById('preset');
+
+// ── Apply theme to iframe ──
+function applyToPreview() {
+  const theme = {};
+  IDS.forEach(id => theme[id] = inputs[id].value);
+  theme.font = inputs.font.value;
+  theme['border-width'] = inputs['border-width'].value;
+  theme['panel-radius'] = inputs['panel-radius'].value;
+  theme['glow-intensity'] = (inputs['glow-intensity'].value / 10).toFixed(1);
+  theme['crt-scan-opacity'] = inputs['crt-scan-opacity'].value;
+  theme['vignette-opacity'] = inputs['vignette-opacity'].value;
+
+  frame.contentWindow.postMessage({ type: 'theme', data: theme }, '*');
+}
+
+// ── Event listeners ──
+Object.values(inputs).forEach(el => {
+  el.addEventListener('input', () => {
+    presetSelect.value = '';
+    applyToPreview();
+  });
+});
+
+presetSelect.addEventListener('change', () => {
+  const name = presetSelect.value;
+  if (!name) return;
+  const p = PRESETS[name];
+  IDS.forEach(id => inputs[id].value = p[id]);
+  inputs.font.value = p.font;
+  inputs['border-width'].value = p['border-width'];
+  inputs['panel-radius'].value = p['panel-radius'];
+  inputs['glow-intensity'].value = p['glow-intensity'];
+  inputs['crt-scan-opacity'].value = p['crt-scan-opacity'];
+  inputs['vignette-opacity'].value = p['vignette-opacity'];
+  applyToPreview();
+});
+
+// ── Randomize ──
+document.getElementById('btn-random').addEventListener('click', () => {
+  const randHex = () => '#' + Array.from({length:6}, () => '0123456789ABCDEF'[Math.floor(Math.random()*16)]).join('');
+  IDS.forEach(id => inputs[id].value = randHex());
+  inputs['border-width'].value = Math.floor(Math.random() * 3);
+  inputs['panel-radius'].value = Math.floor(Math.random() * 8);
+  inputs['glow-intensity'].value = Math.floor(Math.random() * 25);
+  inputs['crt-scan-opacity'].value = Math.floor(Math.random() * 30);
+  inputs['vignette-opacity'].value = Math.floor(Math.random() * 60);
+  presetSelect.value = '';
+  applyToPreview();
+});
+
+// ── Export CSS ──
+document.getElementById('btn-export').addEventListener('click', () => {
+  const theme = {};
+  IDS.forEach(id => theme[id] = inputs[id].value);
+  theme.font = inputs.font.value;
+  theme['border-width'] = inputs['border-width'].value;
+  theme['panel-radius'] = inputs['panel-radius'].value;
+  theme['glow-intensity'] = (inputs['glow-intensity'].value / 10).toFixed(1);
+  theme['crt-scan-opacity'] = inputs['crt-scan-opacity'].value;
+  theme['vignette-opacity'] = inputs['vignette-opacity'].value;
+
+  const css = `/* Auto-generated theme */
+[data-theme="custom"] {
+  --bg:         ${theme.bg};
+  --bg-panel:   ${theme['bg-panel']};
+  --border-red: ${theme['border-red']};
+  --border-cyan:${theme['border-cyan']};
+  --text-dim:   ${theme['text-dim']};
+  --text-med:   ${theme['text-med']};
+  --text-bright:${theme['text-bright']};
+  --red:        ${theme.red};
+  --red-dim:    ${theme['red-dim']};
+  --cyan:       ${theme.cyan};
+  --cyan-dim:   ${theme['cyan-dim']};
+  --amber:      ${theme.amber};
+  --amber-dim:  ${theme['amber-dim']};
+  --grid:       ${theme.grid};
+  --font-body:  ${theme.font};
+  --font-header:${theme.font};
+  --panel-radius: ${theme['panel-radius']}px;
+  --border-width: ${theme['border-width']}px;
+  --glow-intensity: ${theme['glow-intensity']};
+  --crt-scan:   rgba(0,0,0,${(theme['crt-scan-opacity']/100).toFixed(2)});
+  --crt-vignette:rgba(0,0,0,${(theme['vignette-opacity']/100).toFixed(2)});
+}`;
+
+  showModal('Export CSS', css);
+});
+
+// ── Export JSON ──
+document.getElementById('btn-json').addEventListener('click', () => {
+  const theme = {};
+  IDS.forEach(id => theme[id] = inputs[id].value);
+  theme.font = inputs.font.value;
+  theme['border-width'] = inputs['border-width'].value;
+  theme['panel-radius'] = inputs['panel-radius'].value;
+  theme['glow-intensity'] = inputs['glow-intensity'].value;
+  theme['crt-scan-opacity'] = inputs['crt-scan-opacity'].value;
+  theme['vignette-opacity'] = inputs['vignette-opacity'].value;
+  showModal('Export JSON', JSON.stringify(theme, null, 2));
+});
+
+// ── Import JSON ──
+document.getElementById('btn-import').addEventListener('click', () => {
+  const raw = prompt('Paste JSON theme:');
+  if (!raw) return;
+  try {
+    const theme = JSON.parse(raw);
+    IDS.forEach(id => { if (theme[id]) inputs[id].value = theme[id]; });
+    if (theme.font) inputs.font.value = theme.font;
+    if (theme['border-width'] !== undefined) inputs['border-width'].value = theme['border-width'];
+    if (theme['panel-radius'] !== undefined) inputs['panel-radius'].value = theme['panel-radius'];
+    if (theme['glow-intensity'] !== undefined) inputs['glow-intensity'].value = theme['glow-intensity'];
+    if (theme['crt-scan-opacity'] !== undefined) inputs['crt-scan-opacity'].value = theme['crt-scan-opacity'];
+    if (theme['vignette-opacity'] !== undefined) inputs['vignette-opacity'].value = theme['vignette-opacity'];
+    presetSelect.value = '';
+    applyToPreview();
+  } catch (e) {
+    alert('Invalid JSON');
+  }
+});
+
+// ── Modal ──
+const modal = document.getElementById('modal');
+const modalTitle = document.getElementById('modal-title');
+const modalText = document.getElementById('modal-text');
+
+function showModal(title, text) {
+  modalTitle.textContent = title;
+  modalText.value = text;
+  modal.classList.add('show');
+}
+
+document.getElementById('btn-close').addEventListener('click', () => modal.classList.remove('show'));
+document.getElementById('btn-copy').addEventListener('click', () => {
+  modalText.select();
+  document.execCommand('copy');
+  const btn = document.getElementById('btn-copy');
+  const old = btn.textContent;
+  btn.textContent = 'Copied!';
+  setTimeout(() => btn.textContent = old, 1500);
+});
+
+// ── Init ──
+applyToPreview();
+</script>
+</body>
+</html>

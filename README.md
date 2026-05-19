@@ -18,6 +18,8 @@ Real-time monitoring of your agent swarm telemetry — tool calls, ingestion pip
 - **Scrollable panels** — every quadrant scrolls independently
 - **Visuals** — donut charts, bar charts, heatmaps, waveforms, sparklines
 - **Anomaly detection** — phantom stall, ghost agent, loop detection alerts
+- **Theme Builder** — visual theme editor with live preview, randomize, import/export CSS & JSON
+- **6 built-in skins** — Phosphor, Cyberpunk, Military, Amber Terminal, Matrix, Minimal
 
 ## Requirements
 
@@ -71,6 +73,19 @@ set OTEL_DASHBOARD_JAEGER=http://your-jaeger:16686
 ```
 
 Then restart the app.
+
+## Theme Builder
+
+Open **Theme Builder** from the tray menu (right-click icon → "Theme Builder") or visit `http://localhost:8766/theme-builder.html`.
+
+The builder lets you:
+- **Pick colors** for every CSS variable with live preview
+- **Randomize** a completely new aesthetic in one click
+- **Export** as CSS or JSON to share with others
+- **Import** JSON themes from the community
+- **Adjust** CRT scanlines, vignette, glow intensity, border radius, fonts
+
+Your custom theme is applied instantly to the running dashboard. No restart needed.
 
 ## Architecture
 

@@ -27,6 +27,7 @@
       "preload.js",
       "index.html",
       "themes.css",
+      "theme-builder.html",
       "assets/**/*",
       "README.md"
     ],
