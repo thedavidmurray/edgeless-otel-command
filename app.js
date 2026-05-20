@@ -777,6 +777,232 @@ async function renderServiceDetail(svcName) {
 }
 
 // ── Settings panel ─────────────────────────────────────────────────
+// ── Plug-in Store ──────────────────────────────────────────────────
+// Dedicated browse/install view at #/store. Tabs: All / Panels /
+// Anomaly Rules / Themes / Installed. Search, update detection,
+// submit-your-own link.
+let storeState = {
+  registry: null,
+  registryFetchedAt: null,
+  fetching: false,
+  search: '',
+};
+
+// Semver compare: returns -1, 0, 1
+function semverCmp(a, b) {
+  const pa = String(a || '0').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b || '0').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const ai = pa[i] || 0, bi = pb[i] || 0;
+    if (ai > bi) return 1;
+    if (ai < bi) return -1;
+  }
+  return 0;
+}
+
+async function ensureRegistry(force = false) {
+  if (storeState.registry && !force) return storeState.registry;
+  if (storeState.fetching) return null;
+  storeState.fetching = true;
+  const res = await window.edgeless.pluginsFetchRegistry();
+  storeState.fetching = false;
+  if (res.ok) {
+    storeState.registry = res.registry;
+    storeState.registryFetchedAt = new Date();
+  }
+  return res.ok ? res.registry : null;
+}
+
+function tabForPlugin(p) {
+  // Look at contributes to bucket. The registry doesn't include contributes
+  // but most plug-ins are panels for now; tag-based fallback.
+  const tags = p.tags || [];
+  if (tags.includes('theme')) return 'themes';
+  if (tags.includes('anomaly') || tags.includes('rule')) return 'rules';
+  return 'panels';
+}
+
+async function renderStore(activeTab = 'all') {
+  const modal = document.getElementById('detail-modal');
+  const body = document.getElementById('detail-body');
+  modal.classList.add('open');
+  body.innerHTML = `
+    <div class="detail-head">
+      <div class="detail-meta">
+        <div class="glow-cyan" style="font-size:14px; letter-spacing:2px;">🏬 PLUG-IN STORE</div>
+        <div class="dim">Community-built panels, anomaly rules, and themes. Decentralized — every entry is its own GitHub repo.</div>
+      </div>
+      <div class="detail-actions">
+        <button class="btn" id="store-refresh">↻ Refresh</button>
+        <button class="btn" id="store-submit">+ Submit yours</button>
+      </div>
+    </div>
+    <div class="store-bar">
+      <div class="store-tabs" id="store-tabs">
+        <button class="store-tab" data-tab="all">All</button>
+        <button class="store-tab" data-tab="panels">Panels</button>
+        <button class="store-tab" data-tab="rules">Anomaly Rules</button>
+        <button class="store-tab" data-tab="themes">Themes</button>
+        <button class="store-tab" data-tab="installed">Installed</button>
+      </div>
+      <input type="text" id="store-search" placeholder="Search by name, description, tag…" class="store-search" />
+    </div>
+    <div class="store-status dim" id="store-status">Loading registry…</div>
+    <div class="store-grid" id="store-grid"></div>
+  `;
+
+  // Wire static interactions
+  document.getElementById('store-refresh').addEventListener('click', async () => {
+    await ensureRegistry(true);
+    renderStoreGrid(activeTab);
+  });
+  document.getElementById('store-submit').addEventListener('click', () => {
+    const url = 'https://github.com/thedavidmurray/edgeless-otel-plugins-registry/blob/main/CONTRIBUTING.md';
+    if (window.edgeless && window.edgeless.openExternal) window.edgeless.openExternal(url);
+    else window.open(url);
+  });
+  document.getElementById('store-search').addEventListener('input', (e) => {
+    storeState.search = e.target.value.trim().toLowerCase();
+    renderStoreGrid(activeTab);
+  });
+  document.querySelectorAll('.store-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === activeTab);
+    btn.addEventListener('click', () => navigate(`#/store/${btn.dataset.tab}`));
+  });
+
+  await ensureRegistry();
+  await renderStoreGrid(activeTab);
+}
+
+async function renderStoreGrid(activeTab) {
+  const grid = document.getElementById('store-grid');
+  const status = document.getElementById('store-status');
+  if (!grid) return;
+
+  if (!storeState.registry) {
+    status.textContent = 'Registry unavailable. Check your internet connection.';
+    status.className = 'store-status glow-red';
+    grid.innerHTML = '';
+    return;
+  }
+  const fetched = storeState.registryFetchedAt
+    ? `fetched ${storeState.registryFetchedAt.toLocaleTimeString()}` : '';
+  status.textContent = `Registry v${storeState.registry.version} · updated ${storeState.registry.lastUpdated} · ${fetched}`;
+  status.className = 'store-status dim';
+
+  const installed = await window.edgeless.pluginsList();
+  const installedMap = {};
+  for (const p of installed) installedMap[p.id] = p;
+
+  let plugins = storeState.registry.plugins || [];
+
+  // Tab filter
+  if (activeTab === 'installed') {
+    // Show only installed, but augment with registry info if available
+    const regMap = {};
+    for (const p of plugins) regMap[p.id] = p;
+    plugins = installed.map(p => {
+      const reg = regMap[p.id];
+      return reg ? { ...reg, _installedVersion: p.version, _installedError: p.error, _localOnly: false }
+                 : { id: p.id, name: p.name || p.id, description: '(local install — not in registry)',
+                     author: p.author, latestVersion: p.version, repo: '', tags: [], _installedVersion: p.version, _installedError: p.error, _localOnly: true };
+    });
+  } else if (activeTab !== 'all') {
+    plugins = plugins.filter(p => tabForPlugin(p) === activeTab);
+  }
+
+  // Search filter
+  if (storeState.search) {
+    const q = storeState.search;
+    plugins = plugins.filter(p =>
+      (p.name || '').toLowerCase().includes(q)
+      || (p.description || '').toLowerCase().includes(q)
+      || (p.tags || []).some(t => t.toLowerCase().includes(q))
+      || (p.id || '').toLowerCase().includes(q));
+  }
+
+  if (plugins.length === 0) {
+    grid.innerHTML = '<div class="dim" style="padding:20px;">Nothing matches.</div>';
+    return;
+  }
+
+  grid.innerHTML = plugins.map(p => {
+    const inst = installedMap[p.id];
+    const installedVersion = p._installedVersion || (inst && inst.version);
+    const hasUpdate = installedVersion && p.latestVersion
+      && !p._localOnly && semverCmp(p.latestVersion, installedVersion) > 0;
+    let actionHtml;
+    if (p._localOnly) {
+      actionHtml = '<span class="dim">local</span>';
+    } else if (hasUpdate) {
+      actionHtml = `<button class="btn primary" data-action="update" data-repo="${escapeHtml(p.repo)}" data-id="${escapeHtml(p.id)}">↻ Update to ${escapeHtml(p.latestVersion)}</button>`;
+    } else if (inst) {
+      actionHtml = `<span class="glow-cyan store-installed">✓ INSTALLED v${escapeHtml(installedVersion)}</span>
+                    <button class="btn store-remove" data-action="remove" data-id="${escapeHtml(p.id)}">Remove</button>`;
+    } else {
+      actionHtml = `<button class="btn primary" data-action="install" data-repo="${escapeHtml(p.repo)}" data-id="${escapeHtml(p.id)}">Install v${escapeHtml(p.latestVersion)}</button>`;
+    }
+    const tags = (p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ');
+    const repoLink = p.repo
+      ? `<a href="#" class="store-repo" data-repo="${escapeHtml(p.repo)}">${escapeHtml(p.repo)}</a>`
+      : '<span class="dim">no repo</span>';
+    return `
+      <div class="store-card${hasUpdate ? ' has-update' : ''}">
+        <div class="sc-head">
+          <div>
+            <div class="sc-name">${escapeHtml(p.name)}</div>
+            <div class="sc-meta">${repoLink} · v${escapeHtml(p.latestVersion)} · by ${escapeHtml(p.author || 'unknown')} · ${escapeHtml(p.license || 'unknown')}</div>
+          </div>
+          <div class="sc-actions">${actionHtml}</div>
+        </div>
+        <div class="sc-desc">${escapeHtml(p.description)}</div>
+        <div class="sc-tags">${tags}</div>
+        ${p._installedError ? `<div class="sc-err glow-red">⚠ ${escapeHtml(p._installedError)}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  // Wire actions
+  grid.querySelectorAll('a.store-repo').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = `https://github.com/${a.dataset.repo}`;
+      window.edgeless.openExternal ? window.edgeless.openExternal(url) : window.open(url);
+    });
+  });
+  grid.querySelectorAll('button[data-action="install"], button[data-action="update"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const isUpdate = btn.dataset.action === 'update';
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = isUpdate ? 'Updating…' : 'Installing…';
+      if (isUpdate) {
+        // Update = remove then install
+        await window.edgeless.pluginsRemove(btn.dataset.id);
+      }
+      const result = await window.edgeless.pluginsInstallFromRepo({
+        repo: btn.dataset.repo,
+        id: btn.dataset.id,
+      });
+      if (result.ok) {
+        btn.textContent = isUpdate ? '✓ Updated' : '✓ Installed';
+        setTimeout(() => renderStoreGrid(activeTab), 700);
+      } else {
+        btn.textContent = `Failed`;
+        btn.title = result.error;
+        setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 4000);
+      }
+    });
+  });
+  grid.querySelectorAll('button[data-action="remove"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(`Remove plug-in "${btn.dataset.id}"? This deletes its folder.`)) return;
+      btn.textContent = 'Removing…';
+      await window.edgeless.pluginsRemove(btn.dataset.id);
+      renderStoreGrid(activeTab);
+    });
+  });
+}
+
 function renderSettings() {
   const modal = document.getElementById('detail-modal');
   const body = document.getElementById('detail-body');
@@ -828,15 +1054,8 @@ function renderSettings() {
       <div class="form-row form-actions">
         <button class="btn" id="plugin-reload">Reload plug-ins (Cmd+R)</button>
       </div>
-      <hr/>
-      <div class="form-row" style="grid-template-columns: 1fr;">
-        <label>Browse community plug-ins</label>
-      </div>
-      <div class="plugin-browse" id="plugin-browse">
-        <div class="dim">Fetching registry…</div>
-      </div>
       <div class="form-row form-actions">
-        <button class="btn" id="plugin-refresh-registry">Refresh registry</button>
+        <span class="dim">To browse and install community plug-ins, open the <strong>🏬 Store</strong> button in the controls bar.</span>
       </div>
     </div>
   `;
@@ -931,77 +1150,6 @@ function renderSettings() {
   document.getElementById('plugin-reload').addEventListener('click', () => {
     location.reload();
   });
-
-  // Browse community plug-ins
-  const renderBrowse = async () => {
-    const host = document.getElementById('plugin-browse');
-    if (!host) return;
-    if (!window.edgeless || !window.edgeless.pluginsFetchRegistry) {
-      host.innerHTML = '<div class="dim">Browse unavailable in this build.</div>';
-      return;
-    }
-    host.innerHTML = '<div class="dim">Fetching registry…</div>';
-    const res = await window.edgeless.pluginsFetchRegistry();
-    if (!res.ok) {
-      host.innerHTML = `<div class="glow-red">Registry fetch failed: ${escapeHtml(res.error)}</div>`;
-      return;
-    }
-    const installed = new Set((await window.edgeless.pluginsList()).map(p => p.id));
-    const reg = res.registry;
-    const plugins = (reg.plugins || []);
-    if (!plugins.length) {
-      host.innerHTML = '<div class="dim">No plug-ins in registry yet.</div>';
-      return;
-    }
-    host.innerHTML = plugins.map(p => {
-      const isInstalled = installed.has(p.id);
-      const tags = (p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ');
-      return `
-        <div class="browse-card">
-          <div class="bc-head">
-            <div>
-              <div class="name">${escapeHtml(p.name)}</div>
-              <div class="meta">${escapeHtml(p.id)} · v${escapeHtml(p.latestVersion)} · by ${escapeHtml(p.author || 'unknown')}</div>
-            </div>
-            <div class="bc-actions">
-              <button class="btn" data-action="repo" data-repo="${escapeHtml(p.repo)}">View repo</button>
-              ${isInstalled
-                ? '<span class="glow-cyan">INSTALLED</span>'
-                : `<button class="btn primary" data-action="install" data-repo="${escapeHtml(p.repo)}" data-id="${escapeHtml(p.id)}">Install</button>`}
-            </div>
-          </div>
-          <div class="bc-desc">${escapeHtml(p.description)}</div>
-          <div class="bc-tags">${tags}</div>
-        </div>`;
-    }).join('');
-    host.querySelectorAll('button[data-action="repo"]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const url = `https://github.com/${btn.dataset.repo}`;
-        window.edgeless.openExternal ? window.edgeless.openExternal(url) : window.open(url);
-      });
-    });
-    host.querySelectorAll('button[data-action="install"]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const original = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = 'Installing…';
-        const result = await window.edgeless.pluginsInstallFromRepo({
-          repo: btn.dataset.repo,
-          id: btn.dataset.id,
-        });
-        if (result.ok) {
-          btn.textContent = '✓ Installed · reload to enable';
-          renderPluginList();
-        } else {
-          btn.textContent = `Failed: ${result.error.slice(0, 30)}`;
-          btn.title = result.error;
-          setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 4000);
-        }
-      });
-    });
-  };
-  renderBrowse();
-  document.getElementById('plugin-refresh-registry').addEventListener('click', renderBrowse);
 
   document.getElementById('set-jaeger-test').addEventListener('click', async () => {
     const url = document.getElementById('set-jaeger').value.trim();
@@ -1108,6 +1256,7 @@ function parseHash() {
   if (parts[0] === 'op' && parts[1]) return { view: 'op', op: decodeURIComponent(parts[1]) };
   if (parts[0] === 'anomalies') return { view: 'anomalies' };
   if (parts[0] === 'settings') return { view: 'settings' };
+  if (parts[0] === 'store') return { view: 'store', tab: parts[1] || 'all' };
   return { view: 'overview' };
 }
 
@@ -1135,6 +1284,8 @@ async function handleRoute() {
     // future: per-op view
   } else if (r.view === 'settings') {
     renderSettings();
+  } else if (r.view === 'store') {
+    renderStore(r.tab);
   }
   updateBreadcrumb(r);
 }
@@ -1146,6 +1297,7 @@ function updateBreadcrumb(r) {
   if (r.view === 'trace') parts.push(`<span class="bc-sep">›</span><span class="bc-cur">Trace ${r.id.slice(0, 12)}…</span>`);
   if (r.view === 'service') parts.push(`<span class="bc-sep">›</span><span class="bc-cur">${r.name}</span>`);
   if (r.view === 'settings') parts.push('<span class="bc-sep">›</span><span class="bc-cur">Settings</span>');
+  if (r.view === 'store') parts.push('<span class="bc-sep">›</span><span class="bc-cur">Plug-in Store</span>');
   if (r.view === 'op') parts.push(`<span class="bc-sep">›</span><span class="bc-cur">op:${r.op}</span>`);
   bc.innerHTML = parts.join(' ');
   bc.querySelectorAll('.bc-link').forEach(a => a.addEventListener('click', () => navigate(a.dataset.href)));
@@ -1546,6 +1698,8 @@ async function init() {
 
   // Wire settings gear
   document.getElementById('settings-btn').addEventListener('click', () => navigate('#/settings'));
+  const storeBtn = document.getElementById('store-btn');
+  if (storeBtn) storeBtn.addEventListener('click', () => navigate('#/store/all'));
 
   // Wire router
   window.addEventListener('hashchange', handleRoute);
