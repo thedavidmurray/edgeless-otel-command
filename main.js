@@ -76,6 +76,32 @@ function startProxyServer() {
       return;
     }
 
+    // Serve plug-in files: /plugins/<id>/<filename>
+    if (req.url.startsWith('/plugins/')) {
+      const safe = req.url.replace(/\.\.\//g, '');           // strip parent traversal
+      const subPath = safe.slice('/plugins/'.length);
+      const filePath = path.join(pluginsDir(), subPath);
+      if (!filePath.startsWith(pluginsDir())) {
+        res.writeHead(403); res.end('forbidden'); return;
+      }
+      fs.readFile(filePath, (err, data) => {
+        if (err) { res.writeHead(404); res.end('not found'); return; }
+        const ext = path.extname(filePath).toLowerCase();
+        const mimeMap = {
+          '.js':   'application/javascript',
+          '.json': 'application/json',
+          '.css':  'text/css',
+          '.html': 'text/html',
+          '.png':  'image/png',
+          '.svg':  'image/svg+xml',
+          '.md':   'text/markdown',
+        };
+        res.writeHead(200, { 'Content-Type': mimeMap[ext] || 'application/octet-stream' });
+        res.end(data);
+      });
+      return;
+    }
+
     // Proxy /jaeger/* to the configured Jaeger backend
     if (req.url.startsWith('/jaeger/')) {
       const targetPath = req.url.slice('/jaeger'.length);
@@ -244,6 +270,96 @@ ipcMain.handle('jaeger:test', async (_evt, urlStr) => {
       resolve({ ok: false, error: e.message });
     }
   });
+});
+
+// ── Plug-in system ─────────────────────────────────────────────────
+const pluginsDir = () => path.join(app.getPath('userData'), 'plugins');
+
+const MANIFEST_REQUIRED = ['id', 'name', 'version', 'minAppVersion'];
+
+function validateManifest(m, pluginPath) {
+  for (const k of MANIFEST_REQUIRED) {
+    if (!m[k]) return { ok: false, error: `missing required field: ${k}` };
+  }
+  if (!/^[a-z0-9.-]+$/i.test(m.id)) return { ok: false, error: `invalid id format: ${m.id}` };
+  if (!fs.existsSync(path.join(pluginPath, 'index.js'))) return { ok: false, error: 'index.js not found' };
+  // basic minAppVersion semver check (major-only)
+  const appMajor = parseInt(app.getVersion().split('.')[0], 10);
+  const minMajor = parseInt(String(m.minAppVersion).split('.')[0], 10);
+  if (!Number.isNaN(minMajor) && minMajor > appMajor) {
+    return { ok: false, error: `requires app ≥ ${m.minAppVersion}, this is ${app.getVersion()}` };
+  }
+  return { ok: true };
+}
+
+function discoverPlugins() {
+  const dir = pluginsDir();
+  try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const out = [];
+  for (const e of entries) {
+    if (!e.isDirectory()) continue;
+    const pluginPath = path.join(dir, e.name);
+    const manifestPath = path.join(pluginPath, 'manifest.json');
+    if (!fs.existsSync(manifestPath)) continue;
+    let manifest;
+    try {
+      manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    } catch (err) {
+      out.push({ id: e.name, error: `manifest.json parse error: ${err.message}`, enabled: false });
+      continue;
+    }
+    const v = validateManifest(manifest, pluginPath);
+    const disabledList = readSettings().disabledPlugins || [];
+    out.push({
+      ...manifest,
+      pluginPath,
+      enabled: v.ok && !disabledList.includes(manifest.id),
+      error: v.ok ? null : v.error,
+    });
+  }
+  return out;
+}
+
+ipcMain.handle('plugins:list', () => discoverPlugins());
+
+ipcMain.handle('plugins:toggle', (_evt, pluginId, enabled) => {
+  const s = readSettings();
+  const disabled = new Set(s.disabledPlugins || []);
+  if (enabled) disabled.delete(pluginId);
+  else disabled.add(pluginId);
+  s.disabledPlugins = [...disabled];
+  writeSettings(s);
+  return { ok: true, disabledPlugins: s.disabledPlugins };
+});
+
+ipcMain.handle('plugins:remove', (_evt, pluginId) => {
+  // Find plugin path by id
+  const all = discoverPlugins();
+  const p = all.find(x => x.id === pluginId);
+  if (!p || !p.pluginPath) return { ok: false, error: 'not found' };
+  try {
+    fs.rmSync(p.pluginPath, { recursive: true, force: true });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('plugins:install-local', (_evt, srcPath) => {
+  // Copy a local folder (containing manifest.json + index.js) into pluginsDir/<id>
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(srcPath, 'manifest.json'), 'utf8'));
+    const v = validateManifest(manifest, srcPath);
+    if (!v.ok) return { ok: false, error: v.error };
+    const dest = path.join(pluginsDir(), manifest.id);
+    fs.mkdirSync(pluginsDir(), { recursive: true });
+    if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true });
+    fs.cpSync(srcPath, dest, { recursive: true });
+    return { ok: true, id: manifest.id };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
 });
 
 ipcMain.handle('open-external', (_evt, url) => {

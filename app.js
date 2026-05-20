@@ -814,9 +814,70 @@ function renderSettings() {
         <button class="btn primary" id="set-save">Save</button>
         <span id="set-status" class="dim"></span>
       </div>
+      <hr/>
+      <div class="form-row" style="grid-template-columns: 1fr;">
+        <label>Installed plug-ins</label>
+      </div>
+      <div class="plugin-list" id="plugin-list"><div class="dim">Loading…</div></div>
+      <div class="form-row form-actions">
+        <span class="dim">Drop a plug-in folder into <code>~/Library/Application Support/edgeless-otel-command/plugins/</code> then click reload.</span>
+      </div>
+      <div class="form-row form-actions">
+        <button class="btn" id="plugin-reload">Reload plug-ins</button>
+      </div>
     </div>
   `;
   document.getElementById('set-window').value = String(state.timeWindowMin);
+
+  // Plug-in list rendering
+  const renderPluginList = async () => {
+    const list = document.getElementById('plugin-list');
+    if (!list) return;
+    if (!window.edgeless || !window.edgeless.pluginsList) {
+      list.innerHTML = '<div class="dim">Plug-in API unavailable.</div>';
+      return;
+    }
+    const plugins = await window.edgeless.pluginsList();
+    if (plugins.length === 0) {
+      list.innerHTML = '<div class="dim">No plug-ins installed.</div>';
+      return;
+    }
+    list.innerHTML = plugins.map(p => {
+      const failed = !!p.error;
+      const statusBadge = failed
+        ? `<span class="glow-red">FAILED</span>`
+        : (p.enabled ? `<span class="glow-cyan">ON</span>` : `<span class="dim">OFF</span>`);
+      return `
+        <div class="plugin-row${failed ? ' failed' : ''}">
+          <div>
+            <div class="name">${escapeHtml(p.name || p.id)}</div>
+            <div class="meta">${escapeHtml(p.id)} · v${escapeHtml(p.version || '?')} · by ${escapeHtml(p.author || 'unknown')}</div>
+          </div>
+          <div>${statusBadge}</div>
+          <button class="btn" data-action="toggle" data-id="${escapeHtml(p.id)}" data-enabled="${!p.enabled}">${p.enabled ? 'Disable' : 'Enable'}</button>
+          <button class="btn" data-action="remove" data-id="${escapeHtml(p.id)}">Remove</button>
+          ${failed ? `<div class="err">${escapeHtml(p.error)}</div>` : ''}
+        </div>`;
+    }).join('');
+    list.querySelectorAll('button[data-action="toggle"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await window.edgeless.pluginsToggle(btn.dataset.id, btn.dataset.enabled === 'true');
+        renderPluginList();
+      });
+    });
+    list.querySelectorAll('button[data-action="remove"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm(`Remove plug-in "${btn.dataset.id}"? This deletes its folder.`)) return;
+        await window.edgeless.pluginsRemove(btn.dataset.id);
+        renderPluginList();
+      });
+    });
+  };
+  renderPluginList();
+
+  document.getElementById('plugin-reload').addEventListener('click', () => {
+    location.reload();
+  });
 
   document.getElementById('set-jaeger-test').addEventListener('click', async () => {
     const url = document.getElementById('set-jaeger').value.trim();
@@ -1039,9 +1100,16 @@ async function tick() {
     renderMiniTree(a);
     renderServices(rollup);
 
-    // 4. Anomalies
-    state.anomalies = detectAnomalies(byService, rollup);
+    // 4. Anomalies (built-in + plug-in rules)
+    const builtinAnomalies = detectAnomalies(byService, rollup);
+    const pluginAnomalies = runPluginAnomalies(a, rollup);
+    // Merge: drop the "ALL_CLEAR" placeholder if any real anomalies exist
+    const real = [...builtinAnomalies.filter(x => x.severity !== 'ok'), ...pluginAnomalies];
+    state.anomalies = real.length ? real : builtinAnomalies;
     renderAnomalies();
+
+    // 4b. Plug-in panels
+    renderPluginPanels(a, rollup);
     // Track anomalies in history
     for (const an of state.anomalies) {
       if (an.severity === 'ok') continue;
@@ -1062,6 +1130,231 @@ async function tick() {
   } catch (e) {
     document.getElementById('jaeger-status').textContent = 'OFFLINE';
     console.error('[tick]', e);
+  }
+}
+
+// ── Plug-in host API ───────────────────────────────────────────────
+// `window.edgelessHost` is what plug-in `index.js` files receive as
+// `edgeless` when their `activate(edgeless)` function is called. It is
+// strictly smaller and more stable than the internal renderer state.
+const pluginRegistry = {
+  panels: {},         // { panelId: { plugin, def } }
+  anomalies: {},      // { ruleId:  { plugin, def } }
+  themes: {},         // { themeId: cssText }
+  failed: {},         // { pluginId: errorMessage }
+  enabled: [],        // [{ id, name, version, ... }]
+  eventBus: new EventTarget(),
+};
+
+function makeHostApi(plugin) {
+  const ns = plugin.id;
+  const log = (msg, level = 'info') => {
+    const fn = console[level] || console.log;
+    fn(`[plugin ${plugin.id}] ${msg}`);
+  };
+  // Storage key prefix scopes per-plugin
+  const storageKey = (k) => `plugin:${plugin.id}:${k}`;
+  return {
+    app: {
+      version: '1.2.0',
+      log,
+    },
+    panels: {
+      register(id, def) {
+        if (!id.startsWith(ns)) {
+          throw new Error(`panel id "${id}" must start with plugin id "${ns}"`);
+        }
+        if (!def || typeof def.render !== 'function') {
+          throw new Error('panel def requires render(container, ctx)');
+        }
+        pluginRegistry.panels[id] = {
+          plugin,
+          def: {
+            ...def,
+            render: wrapPanelRender(plugin, def.render),
+          },
+        };
+        log(`registered panel: ${id}`);
+      },
+      list() {
+        return Object.keys(pluginRegistry.panels).map(id => ({
+          id,
+          label: pluginRegistry.panels[id].def.label,
+          plugin: pluginRegistry.panels[id].plugin.id,
+        }));
+      },
+    },
+    anomalies: {
+      register(id, def) {
+        if (!id.startsWith(ns)) {
+          throw new Error(`anomaly id "${id}" must start with plugin id "${ns}"`);
+        }
+        if (typeof def.detect !== 'function') throw new Error('anomaly def requires detect(ctx)');
+        pluginRegistry.anomalies[id] = { plugin, def };
+        log(`registered anomaly rule: ${id}`);
+      },
+      list() {
+        return Object.keys(pluginRegistry.anomalies);
+      },
+    },
+    themes: {
+      register(id, css) {
+        if (!id.startsWith(ns)) throw new Error(`theme id "${id}" must start with "${ns}"`);
+        pluginRegistry.themes[id] = css;
+        // Inject into a dedicated <style> tag so we can un-register cleanly
+        let el = document.getElementById('plugin-theme-' + id);
+        if (!el) {
+          el = document.createElement('style');
+          el.id = 'plugin-theme-' + id;
+          document.head.appendChild(el);
+        }
+        el.textContent = `[data-theme="${id}"] { ${css} }`;
+        log(`registered theme: ${id}`);
+      },
+    },
+    router: {
+      navigate: (hash) => navigate(hash),
+      current: () => parseHash(),
+    },
+    jaeger: {
+      fetch: (apiPath) => fetch(state.jaeger + apiPath).then(r => r.json()),
+      fetchTrace: (id) => fetchTraceById(id),
+    },
+    lib: {
+      fmtDur, fmtAge, hashColor, tagsToObj,
+    },
+    storage: {
+      async get(key) {
+        try { return JSON.parse(localStorage.getItem(storageKey(key))); }
+        catch { return null; }
+      },
+      async set(key, value) {
+        localStorage.setItem(storageKey(key), JSON.stringify(value));
+      },
+    },
+    events: {
+      on(event, cb) {
+        const handler = (e) => cb(e.detail);
+        pluginRegistry.eventBus.addEventListener(event, handler);
+        return () => pluginRegistry.eventBus.removeEventListener(event, handler);
+      },
+    },
+  };
+}
+
+function wrapPanelRender(plugin, renderFn) {
+  return (container, ctx) => {
+    try {
+      return renderFn(container, ctx);
+    } catch (e) {
+      container.innerHTML = `<div class="plugin-error">⚠ ${plugin.id}: ${escapeHtml(e.message)}</div>`;
+      console.error(`[plugin ${plugin.id}] render error:`, e);
+    }
+  };
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+async function loadPlugin(plugin) {
+  if (!plugin.enabled) return;
+  if (plugin.error) {
+    pluginRegistry.failed[plugin.id] = plugin.error;
+    return;
+  }
+  try {
+    const entryUrl = `/plugins/${plugin.id}/index.js?v=${plugin.version}`;
+    const mod = await import(entryUrl);
+    const activate = mod.default || mod.activate;
+    if (typeof activate !== 'function') {
+      throw new Error('no default export — expected `export default function activate(edgeless)`');
+    }
+    activate(makeHostApi(plugin));
+    pluginRegistry.enabled.push(plugin);
+  } catch (e) {
+    pluginRegistry.failed[plugin.id] = e.message;
+    console.error(`[plugin ${plugin.id}] load failed:`, e);
+  }
+}
+
+async function loadAllPlugins() {
+  if (!window.edgeless || !window.edgeless.pluginsList) return;
+  const list = await window.edgeless.pluginsList();
+  for (const p of list) await loadPlugin(p);
+  // Emit a one-time "plugins-ready" event for the dashboard
+  pluginRegistry.eventBus.dispatchEvent(new CustomEvent('plugins-ready', { detail: { count: pluginRegistry.enabled.length } }));
+}
+
+// Build ctx passed to plug-in panels and anomaly rules on each tick
+function buildPluginCtx(a, rollup) {
+  return {
+    traces: a.traces,
+    services: state.services,
+    byService: state.serviceTraces,
+    rollup,
+    anomalies: state.anomalies,
+    settings: { ...state.settings },
+    serviceFilter: state.serviceFilter,
+    timeWindowMin: state.timeWindowMin,
+    lib: { fmtDur, fmtAge, hashColor, tagsToObj },
+  };
+}
+
+// Run all registered plug-in anomaly rules
+function runPluginAnomalies(a, rollup) {
+  const out = [];
+  const ctx = {
+    traces: a.traces,
+    byService: state.serviceTraces,
+    rollup,
+    timeWindowMin: state.timeWindowMin,
+  };
+  for (const [id, entry] of Object.entries(pluginRegistry.anomalies)) {
+    try {
+      const found = entry.def.detect(ctx) || [];
+      for (const f of found) {
+        out.push({
+          severity: f.severity || entry.def.severity || 'warn',
+          kind: f.kind || id,
+          title: f.title || entry.def.label,
+          detail: f.detail || '',
+          service: f.service,
+          traceID: f.traceID,
+          ts: Date.now(),
+        });
+      }
+    } catch (e) {
+      console.error(`[plugin ${entry.plugin.id}] anomaly rule "${id}" failed:`, e);
+    }
+  }
+  return out;
+}
+
+// Render registered plug-in panels into a container.
+// In v1.2.0 these appear below the main grid in a stack. v2 will allow
+// drag-to-place into the grid via layout configs.
+function renderPluginPanels(a, rollup) {
+  const host = document.getElementById('plugin-panels');
+  if (!host) return;
+  const ctx = buildPluginCtx(a, rollup);
+  // Build / refresh panel skeletons (one per panel id)
+  for (const [id, entry] of Object.entries(pluginRegistry.panels)) {
+    let panel = host.querySelector(`[data-plugin-panel="${id}"]`);
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.className = 'panel';
+      panel.dataset.pluginPanel = id;
+      panel.setAttribute('data-label', entry.def.label || id);
+      const inner = document.createElement('div');
+      inner.className = 'panel-content';
+      panel.appendChild(inner);
+      host.appendChild(panel);
+    }
+    const inner = panel.querySelector('.panel-content');
+    entry.def.render(inner, ctx);
   }
 }
 
@@ -1107,6 +1400,9 @@ async function init() {
   setInterval(() => {
     document.getElementById('clock').textContent = fmtTime(new Date());
   }, 1000);
+
+  // Load plug-ins BEFORE first tick so they show on the first render
+  await loadAllPlugins();
 
   // Initial fetch + interval
   await tick();

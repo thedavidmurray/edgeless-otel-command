@@ -339,6 +339,31 @@ main {
 .form-actions { grid-template-columns: 200px 1fr; }
 .dim { color: var(--text-dim); }
 
+/* === PLUG-IN PANELS === */
+.plugin-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 8px;
+}
+.plugin-panels:empty { display: none; }
+.plugin-panels .panel { min-height: 200px; }
+.plugin-error {
+  padding: 12px; color: var(--red); border: 1px solid var(--red); background: rgba(139,34,34,0.12);
+  font-size: 11px; text-transform: none; letter-spacing: 0;
+}
+
+/* === PLUG-IN LIST IN SETTINGS === */
+.plugin-list { display: flex; flex-direction: column; gap: 6px; }
+.plugin-row {
+  display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px;
+  align-items: center; padding: 8px 10px; border: 1px solid var(--text-dim);
+  font-size: 11px;
+}
+.plugin-row.failed { border-color: var(--red); }
+.plugin-row .name { color: var(--text-bright); font-weight: bold; }
+.plugin-row .meta { color: var(--text-dim); font-size: 9px; }
+.plugin-row .err { color: var(--red); font-size: 10px; grid-column: 1/-1; }
+
 /* === SCANLINE ANIMATION BAR === */
 .scan-bar {
   position: absolute; left: 0; right: 0; height: 2px;
@@ -502,6 +527,9 @@ main {
       </div>
     </div>
   </main>
+
+  <!-- Plug-in panels (registered by community plug-ins). Hidden when empty. -->
+  <div id="plugin-panels" class="plugin-panels"></div>
 </div>
 
 <!-- Drill-down / Settings modal overlay -->
