@@ -362,6 +362,97 @@ ipcMain.handle('plugins:install-local', (_evt, srcPath) => {
   }
 });
 
+// Default registry. User can override in settings.
+const DEFAULT_REGISTRY_URL =
+  'https://raw.githubusercontent.com/thedavidmurray/edgeless-otel-plugins-registry/main/plugins.json';
+
+ipcMain.handle('plugins:fetch-registry', async () => {
+  const settings = readSettings();
+  const url = settings.registryUrl || DEFAULT_REGISTRY_URL;
+  return new Promise((resolve) => {
+    try {
+      const u = new URL(url);
+      const client = u.protocol === 'https:' ? https : http;
+      const req = client.get(u.toString(), { timeout: 10000 }, (res) => {
+        if (res.statusCode !== 200) {
+          resolve({ ok: false, error: `HTTP ${res.statusCode}` });
+          return;
+        }
+        let body = '';
+        res.on('data', (c) => { body += c.toString(); });
+        res.on('end', () => {
+          try {
+            const reg = JSON.parse(body);
+            resolve({ ok: true, registry: reg, fetchedFrom: url, fetchedAt: new Date().toISOString() });
+          } catch (e) {
+            resolve({ ok: false, error: `invalid JSON: ${e.message}` });
+          }
+        });
+      });
+      req.on('error', (err) => resolve({ ok: false, error: err.message }));
+      req.on('timeout', () => { req.destroy(); resolve({ ok: false, error: 'timeout' }); });
+    } catch (e) {
+      resolve({ ok: false, error: e.message });
+    }
+  });
+});
+
+// Install a plug-in by cloning its GitHub repo into pluginsDir/<id>.
+// Validates manifest after clone; on failure, removes the directory.
+ipcMain.handle('plugins:install-from-repo', async (_evt, { repo, id }) => {
+  const { spawn } = require('child_process');
+  if (!repo || !/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(repo)) {
+    return { ok: false, error: 'invalid repo format — expected "owner/name"' };
+  }
+  const dest = path.join(pluginsDir(), id);
+  try { fs.mkdirSync(pluginsDir(), { recursive: true }); } catch {}
+  if (fs.existsSync(dest)) {
+    return { ok: false, error: `already installed: ${id} (remove first to reinstall)` };
+  }
+  const cloneUrl = `https://github.com/${repo}.git`;
+  return new Promise((resolve) => {
+    const child = spawn('git', ['clone', '--depth=1', cloneUrl, dest], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stderr = '';
+    child.stderr.on('data', (c) => { stderr += c.toString(); });
+    child.on('close', (code) => {
+      if (code !== 0) {
+        // cleanup partial
+        try { fs.rmSync(dest, { recursive: true, force: true }); } catch {}
+        resolve({ ok: false, error: `git clone failed (${code}): ${stderr.trim().slice(0, 200)}` });
+        return;
+      }
+      // Validate manifest
+      try {
+        const mPath = path.join(dest, 'manifest.json');
+        if (!fs.existsSync(mPath)) {
+          fs.rmSync(dest, { recursive: true, force: true });
+          resolve({ ok: false, error: 'cloned repo has no manifest.json' });
+          return;
+        }
+        const m = JSON.parse(fs.readFileSync(mPath, 'utf8'));
+        if (m.id !== id) {
+          fs.rmSync(dest, { recursive: true, force: true });
+          resolve({ ok: false, error: `manifest id "${m.id}" does not match registry id "${id}"` });
+          return;
+        }
+        const v = validateManifest(m, dest);
+        if (!v.ok) {
+          fs.rmSync(dest, { recursive: true, force: true });
+          resolve({ ok: false, error: v.error });
+          return;
+        }
+        resolve({ ok: true, id: m.id, name: m.name, version: m.version });
+      } catch (e) {
+        try { fs.rmSync(dest, { recursive: true, force: true }); } catch {}
+        resolve({ ok: false, error: `validation: ${e.message}` });
+      }
+    });
+    child.on('error', (err) => {
+      resolve({ ok: false, error: `git not available: ${err.message}` });
+    });
+  });
+});
+
 ipcMain.handle('open-external', (_evt, url) => {
   require('electron').shell.openExternal(url);
 });

@@ -9,7 +9,7 @@ This guide is for developers who want to extend Edgeless OTel Command with custo
 ### Step 1: Scaffold from example
 
 ```bash
-git clone https://github.com/edgeless-dev/edgeless-plugin-example.git ~/edgeless-plugin-hello
+git clone https://github.com/thedavidmurray/edgeless-plugin-example.git ~/edgeless-plugin-hello
 cd ~/edgeless-plugin-hello
 ```
 
@@ -674,7 +674,7 @@ Community plug-in discovery is coming in v1.3.0. Here is the model:
 
 1. **Create a GitHub repo** for your plug-in
 2. **Tag a release** with the plug-in folder zipped (no node_modules, .git, etc.)
-3. **Fork** `edgeless-dev/edgeless-otel-plugins` (the registry)
+3. **Fork** `thedavidmurray/edgeless-otel-plugins-registry` (the registry)
 4. **Add an entry** to `plugins.json`:
 
 ```json
@@ -785,9 +785,9 @@ const theme = await edgeless.storage.get('user-theme');
 ## Reference
 
 - **Architecture:** See `docs/v1.2.0-plugin-architecture.md` for design rationale
-- **Example plug-in:** https://github.com/edgeless-dev/edgeless-plugin-example
-- **Registry:** https://github.com/edgeless-dev/edgeless-otel-plugins (v1.3.0)
-- **Main app:** https://github.com/edgeless-dev/edgeless-otel-command
+- **Example plug-in:** https://github.com/thedavidmurray/edgeless-plugin-example
+- **Registry:** https://github.com/thedavidmurray/edgeless-otel-plugins-registry (v1.3.0)
+- **Main app:** https://github.com/thedavidmurray/edgeless-otel-command
 
 ---
 

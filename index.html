@@ -364,6 +364,23 @@ main {
 .plugin-row .meta { color: var(--text-dim); font-size: 9px; }
 .plugin-row .err { color: var(--red); font-size: 10px; grid-column: 1/-1; }
 
+/* === BROWSE PLUG-IN CARDS === */
+.plugin-browse { display: flex; flex-direction: column; gap: 8px; }
+.browse-card {
+  border: 1px solid var(--text-dim); padding: 10px 12px;
+  background: rgba(0,0,0,0.2); font-size: 11px;
+}
+.browse-card .bc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 6px; }
+.browse-card .name { color: var(--text-bright); font-weight: bold; font-size: 12px; }
+.browse-card .meta { color: var(--text-dim); font-size: 9px; margin-top: 2px; }
+.browse-card .bc-actions { display: flex; gap: 6px; align-items: center; }
+.browse-card .bc-desc { color: var(--text-med); margin: 6px 0; line-height: 1.4; }
+.browse-card .bc-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.browse-card .tag {
+  font-size: 9px; padding: 1px 5px; border: 1px solid var(--text-dim);
+  color: var(--text-med); text-transform: uppercase; letter-spacing: 0.5px;
+}
+
 /* === SCANLINE ANIMATION BAR === */
 .scan-bar {
   position: absolute; left: 0; right: 0; height: 2px;

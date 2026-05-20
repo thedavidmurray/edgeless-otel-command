@@ -820,10 +820,17 @@ function renderSettings() {
       </div>
       <div class="plugin-list" id="plugin-list"><div class="dim">Loading…</div></div>
       <div class="form-row form-actions">
-        <span class="dim">Drop a plug-in folder into <code>~/Library/Application Support/edgeless-otel-command/plugins/</code> then click reload.</span>
+        <button class="btn" id="plugin-reload">Reload plug-ins (Cmd+R)</button>
+      </div>
+      <hr/>
+      <div class="form-row" style="grid-template-columns: 1fr;">
+        <label>Browse community plug-ins</label>
+      </div>
+      <div class="plugin-browse" id="plugin-browse">
+        <div class="dim">Fetching registry…</div>
       </div>
       <div class="form-row form-actions">
-        <button class="btn" id="plugin-reload">Reload plug-ins</button>
+        <button class="btn" id="plugin-refresh-registry">Refresh registry</button>
       </div>
     </div>
   `;
@@ -878,6 +885,77 @@ function renderSettings() {
   document.getElementById('plugin-reload').addEventListener('click', () => {
     location.reload();
   });
+
+  // Browse community plug-ins
+  const renderBrowse = async () => {
+    const host = document.getElementById('plugin-browse');
+    if (!host) return;
+    if (!window.edgeless || !window.edgeless.pluginsFetchRegistry) {
+      host.innerHTML = '<div class="dim">Browse unavailable in this build.</div>';
+      return;
+    }
+    host.innerHTML = '<div class="dim">Fetching registry…</div>';
+    const res = await window.edgeless.pluginsFetchRegistry();
+    if (!res.ok) {
+      host.innerHTML = `<div class="glow-red">Registry fetch failed: ${escapeHtml(res.error)}</div>`;
+      return;
+    }
+    const installed = new Set((await window.edgeless.pluginsList()).map(p => p.id));
+    const reg = res.registry;
+    const plugins = (reg.plugins || []);
+    if (!plugins.length) {
+      host.innerHTML = '<div class="dim">No plug-ins in registry yet.</div>';
+      return;
+    }
+    host.innerHTML = plugins.map(p => {
+      const isInstalled = installed.has(p.id);
+      const tags = (p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ');
+      return `
+        <div class="browse-card">
+          <div class="bc-head">
+            <div>
+              <div class="name">${escapeHtml(p.name)}</div>
+              <div class="meta">${escapeHtml(p.id)} · v${escapeHtml(p.latestVersion)} · by ${escapeHtml(p.author || 'unknown')}</div>
+            </div>
+            <div class="bc-actions">
+              <button class="btn" data-action="repo" data-repo="${escapeHtml(p.repo)}">View repo</button>
+              ${isInstalled
+                ? '<span class="glow-cyan">INSTALLED</span>'
+                : `<button class="btn primary" data-action="install" data-repo="${escapeHtml(p.repo)}" data-id="${escapeHtml(p.id)}">Install</button>`}
+            </div>
+          </div>
+          <div class="bc-desc">${escapeHtml(p.description)}</div>
+          <div class="bc-tags">${tags}</div>
+        </div>`;
+    }).join('');
+    host.querySelectorAll('button[data-action="repo"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const url = `https://github.com/${btn.dataset.repo}`;
+        window.edgeless.openExternal ? window.edgeless.openExternal(url) : window.open(url);
+      });
+    });
+    host.querySelectorAll('button[data-action="install"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Installing…';
+        const result = await window.edgeless.pluginsInstallFromRepo({
+          repo: btn.dataset.repo,
+          id: btn.dataset.id,
+        });
+        if (result.ok) {
+          btn.textContent = '✓ Installed · reload to enable';
+          renderPluginList();
+        } else {
+          btn.textContent = `Failed: ${result.error.slice(0, 30)}`;
+          btn.title = result.error;
+          setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 4000);
+        }
+      });
+    });
+  };
+  renderBrowse();
+  document.getElementById('plugin-refresh-registry').addEventListener('click', renderBrowse);
 
   document.getElementById('set-jaeger-test').addEventListener('click', async () => {
     const url = document.getElementById('set-jaeger').value.trim();

@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('edgeless', {
   pluginsToggle: (id, enabled) => ipcRenderer.invoke('plugins:toggle', id, enabled),
   pluginsRemove: (id) => ipcRenderer.invoke('plugins:remove', id),
   pluginsInstallLocal: (srcPath) => ipcRenderer.invoke('plugins:install-local', srcPath),
+  pluginsFetchRegistry: () => ipcRenderer.invoke('plugins:fetch-registry'),
+  pluginsInstallFromRepo: ({ repo, id }) => ipcRenderer.invoke('plugins:install-from-repo', { repo, id }),
 });
 
 // Legacy alias for backward compatibility with v1.0.0 code
