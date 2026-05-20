@@ -167,6 +167,34 @@ html, body {
   --glow-intensity: 0.0;
 }
 
+/* ── THEME: OUTRUN ──
+   Inspired by the synthwave / vaporwave aesthetic: hot pink/magenta data
+   on near-black with violet accents, dense dot-matrix density.
+*/
+[data-theme="outrun"] {
+  --bg:         #0a0610;
+  --bg-panel:   #1a0a1c;
+  --border-red: #ff2a8a;
+  --border-cyan:#b052ff;
+  --text-dim:   #6b1f4a;
+  --text-med:   #d04a8a;
+  --text-bright:#ff79c6;
+  --red:        #ff2a8a;
+  --red-dim:    #8b1252;
+  --cyan:       #c47aff;
+  --cyan-dim:   #5e2a8a;
+  --amber:      #ff85c2;
+  --amber-dim:  #aa3a72;
+  --grid:       #3a0a2a;
+  --crt-scan:   rgba(0,0,0,0.2);
+  --crt-vignette:rgba(40,0,30,0.55);
+  --font-body:  'Courier New', Courier, monospace;
+  --font-header:'Courier New', Courier, monospace;
+  --panel-radius: 0px;
+  --border-width: 1px;
+  --glow-intensity: 1.2;
+}
+
 /* ── CRT effects (theme-aware) ── */
 body::before {
   content: '';
@@ -224,6 +252,7 @@ body { font-family: var(--font-body); }
 #theme-switcher .theme-btn[data-theme="amber"]     { background: #ffb000; }
 #theme-switcher .theme-btn[data-theme="matrix"]    { background: #00ff41; }
 #theme-switcher .theme-btn[data-theme="minimal"]   { background: #999999; }
+#theme-switcher .theme-btn[data-theme="outrun"]    { background: linear-gradient(135deg, #ff2a8a 50%, #b052ff 50%); }
 
 #theme-switcher .theme-label {
   font-size: 9px;
