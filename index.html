@@ -309,6 +309,20 @@ main[data-layout="compact"] .donut { width: 70px; height: 70px; }
 }
 .icon-btn:hover { border-color: var(--cyan); color: var(--cyan); }
 
+/* Update-available badge on the Store button */
+#store-btn { position: relative; }
+#store-btn[data-updates]:not([data-updates="0"])::after {
+  content: attr(data-updates);
+  position: absolute; top: -6px; right: -6px;
+  min-width: 14px; height: 14px;
+  background: var(--amber); color: var(--bg);
+  font-size: 9px; font-weight: bold; line-height: 14px;
+  padding: 0 4px; border-radius: 7px; text-align: center;
+  border: 1px solid var(--bg);
+  letter-spacing: 0; text-transform: none;
+  animation: breathe 2s infinite ease-in-out;
+}
+
 /* === MODAL OVERLAY (drill-down + settings) === */
 #detail-modal {
   position: fixed; inset: 0; background: rgba(0,0,0,0.82);

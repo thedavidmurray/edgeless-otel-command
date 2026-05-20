@@ -777,6 +777,36 @@ async function renderServiceDetail(svcName) {
 }
 
 // ── Settings panel ─────────────────────────────────────────────────
+// Background update check. Compares installed plug-in versions against
+// the registry's latestVersion. Updates the Store-button badge.
+async function checkForPluginUpdates() {
+  if (!window.edgeless || !window.edgeless.pluginsFetchRegistry) return;
+  const reg = await ensureRegistry(true);
+  if (!reg) return;
+  const installed = await window.edgeless.pluginsList();
+  const regMap = {};
+  for (const p of reg.plugins || []) regMap[p.id] = p;
+  let count = 0;
+  for (const inst of installed) {
+    const r = regMap[inst.id];
+    if (r && r.latestVersion && inst.version && semverCmp(r.latestVersion, inst.version) > 0) {
+      count++;
+    }
+  }
+  setStoreBadge(count);
+}
+
+function setStoreBadge(count) {
+  const btn = document.getElementById('store-btn');
+  if (!btn) return;
+  btn.dataset.updates = String(count);
+  if (count > 0) {
+    btn.title = `${count} plug-in update${count > 1 ? 's' : ''} available`;
+  } else {
+    btn.title = 'Plug-in Store';
+  }
+}
+
 // ── Plug-in Store ──────────────────────────────────────────────────
 // Dedicated browse/install view at #/store. Tabs: All / Panels /
 // Anomaly Rules / Themes / Installed. Search, update detection,
@@ -985,6 +1015,7 @@ async function renderStoreGrid(activeTab) {
       });
       if (result.ok) {
         btn.textContent = isUpdate ? '✓ Updated' : '✓ Installed';
+        checkForPluginUpdates();
         setTimeout(() => renderStoreGrid(activeTab), 700);
       } else {
         btn.textContent = `Failed`;
@@ -998,6 +1029,7 @@ async function renderStoreGrid(activeTab) {
       if (!confirm(`Remove plug-in "${btn.dataset.id}"? This deletes its folder.`)) return;
       btn.textContent = 'Removing…';
       await window.edgeless.pluginsRemove(btn.dataset.id);
+      checkForPluginUpdates();
       renderStoreGrid(activeTab);
     });
   });
@@ -1716,6 +1748,10 @@ async function init() {
   // Initial fetch + interval
   await tick();
   setInterval(tick, state.settings.refreshIntervalMs || 10000);
+
+  // Plug-in update check: once on launch, then hourly
+  checkForPluginUpdates();
+  setInterval(checkForPluginUpdates, 60 * 60 * 1000);
 }
 
 init();
