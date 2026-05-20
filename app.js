@@ -526,7 +526,8 @@ function renderAnomalies() {
     }
     container.appendChild(card);
   }
-  document.getElementById('last-check').textContent = fmtTime(new Date());
+  const lc = document.getElementById('last-check');
+  if (lc) lc.textContent = fmtTime(new Date());
 }
 
 function renderServices(rollup) {
@@ -816,6 +817,11 @@ function renderSettings() {
       </div>
       <hr/>
       <div class="form-row" style="grid-template-columns: 1fr;">
+        <label>Manage panels (show/hide)</label>
+      </div>
+      <div class="panel-toggles" id="panel-toggles"></div>
+      <hr/>
+      <div class="form-row" style="grid-template-columns: 1fr;">
         <label>Installed plug-ins</label>
       </div>
       <div class="plugin-list" id="plugin-list"><div class="dim">Loading…</div></div>
@@ -881,6 +887,46 @@ function renderSettings() {
     });
   };
   renderPluginList();
+
+  // Panel show/hide toggles
+  const renderPanelToggles = async () => {
+    const host = document.getElementById('panel-toggles');
+    if (!host) return;
+    // Discover built-in panel IDs from DOM, plus any plug-in panel IDs from the registry
+    const builtins = Array.from(document.querySelectorAll('main .panel[data-panel-id]'))
+      .filter(el => !el.dataset.pluginPanel)
+      .map(el => ({ id: el.dataset.panelId, label: el.dataset.label || el.dataset.panelId, type: 'built-in' }));
+    const pluginPanels = Object.keys(pluginRegistry.panels).map(id => ({
+      id,
+      label: pluginRegistry.panels[id].def.label || id,
+      type: 'plug-in',
+    }));
+    const all = [...builtins, ...pluginPanels];
+    const hidden = new Set((state.settings && state.settings.hiddenPanels) || []);
+    host.innerHTML = all.map(p => `
+      <label class="panel-toggle">
+        <input type="checkbox" data-panel-id="${escapeHtml(p.id)}" ${hidden.has(p.id) ? '' : 'checked'} />
+        <span class="pt-label">${escapeHtml(p.label)}</span>
+        <span class="pt-type ${p.type === 'plug-in' ? 'glow-cyan' : 'dim'}">${p.type}</span>
+      </label>
+    `).join('') || '<div class="dim">No panels detected.</div>';
+    host.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', async () => {
+        const pid = cb.dataset.panelId;
+        const next = new Set((state.settings.hiddenPanels) || []);
+        if (cb.checked) next.delete(pid);
+        else next.add(pid);
+        state.settings.hiddenPanels = [...next];
+        if (window.edgeless && window.edgeless.setSettings) {
+          await window.edgeless.setSettings({ hiddenPanels: state.settings.hiddenPanels });
+        }
+        // Apply immediately to DOM
+        const el = document.querySelector(`main .panel[data-panel-id="${CSS.escape(pid)}"]`);
+        if (el) el.dataset.hidden = cb.checked ? 'false' : 'true';
+      });
+    });
+  };
+  renderPanelToggles();
 
   document.getElementById('plugin-reload').addEventListener('click', () => {
     location.reload();
@@ -1431,19 +1477,21 @@ function runPluginAnomalies(a, rollup) {
   return out;
 }
 
-// Render registered plug-in panels into a container.
-// In v1.2.0 these appear below the main grid in a stack. v2 will allow
-// drag-to-place into the grid via layout configs.
+// Render registered plug-in panels into the main grid. Each panel
+// gets data-panel-id matching its registration id, so the panel
+// visibility toggles + layout system treat plug-ins identically to
+// built-ins.
 function renderPluginPanels(a, rollup) {
-  const host = document.getElementById('plugin-panels');
+  const host = document.querySelector('main');
   if (!host) return;
   const ctx = buildPluginCtx(a, rollup);
-  // Build / refresh panel skeletons (one per panel id)
+  const hidden = new Set((state.settings && state.settings.hiddenPanels) || []);
   for (const [id, entry] of Object.entries(pluginRegistry.panels)) {
-    let panel = host.querySelector(`[data-plugin-panel="${id}"]`);
+    let panel = host.querySelector(`[data-panel-id="${CSS.escape(id)}"]`);
     if (!panel) {
       panel = document.createElement('div');
       panel.className = 'panel';
+      panel.dataset.panelId = id;
       panel.dataset.pluginPanel = id;
       panel.setAttribute('data-label', entry.def.label || id);
       const inner = document.createElement('div');
@@ -1451,9 +1499,17 @@ function renderPluginPanels(a, rollup) {
       panel.appendChild(inner);
       host.appendChild(panel);
     }
+    // Apply hide-state from settings
+    panel.dataset.hidden = hidden.has(id) ? 'true' : 'false';
     const inner = panel.querySelector('.panel-content');
     entry.def.render(inner, ctx);
   }
+  // Also apply hide-state to built-ins
+  host.querySelectorAll('.panel[data-panel-id]').forEach(p => {
+    const pid = p.dataset.panelId;
+    if (pluginRegistry.panels[pid]) return; // already handled above
+    p.dataset.hidden = hidden.has(pid) ? 'true' : 'false';
+  });
 }
 
 // ── Bootstrap ──────────────────────────────────────────────────────

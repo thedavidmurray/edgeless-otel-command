@@ -160,6 +160,16 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    if (process.env.EDGELESS_DEVTOOLS === '1') mainWindow.webContents.openDevTools({ mode: 'detach' });
+  });
+
+  // Forward renderer console to main log so crashes are visible without devtools.
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    const levels = { 0: 'log', 1: 'warning', 2: 'error', 3: 'info' };
+    console.log(`[renderer ${levels[level] || level}] ${message} (${sourceId}:${line})`);
+  });
+  mainWindow.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[renderer crash]', details);
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });
