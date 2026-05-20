@@ -1129,6 +1129,26 @@ function renderTimeWindow() {
   };
 }
 
+const VALID_LAYOUTS = ['default', 'focus', 'wide', 'compact', 'stack'];
+const LAYOUT_KEY = 'edgeless-otel-layout';
+
+function applyLayout(name) {
+  if (!VALID_LAYOUTS.includes(name)) name = 'default';
+  const main = document.querySelector('main');
+  if (main) main.setAttribute('data-layout', name);
+  const sel = document.getElementById('layout-select');
+  if (sel) sel.value = name;
+  try { localStorage.setItem(LAYOUT_KEY, name); } catch (e) {}
+}
+
+function initLayout() {
+  let saved;
+  try { saved = localStorage.getItem(LAYOUT_KEY); } catch (e) {}
+  applyLayout(saved || 'default');
+  const sel = document.getElementById('layout-select');
+  if (sel) sel.onchange = () => applyLayout(sel.value);
+}
+
 // ── Theme system (kept from v1.0) ──────────────────────────────────
 const THEME_KEY = 'edgeless-otel-theme';
 
@@ -1449,6 +1469,7 @@ async function init() {
     };
   }
   initTheme();
+  initLayout();
   initWaveform();
   renderTimeWindow();
 

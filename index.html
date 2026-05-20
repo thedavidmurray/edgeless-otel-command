@@ -66,14 +66,55 @@ header .badge {
   font-size: 10px; min-width: 28px; text-align: center;
 }
 
-/* === MAIN GRID === */
+/* === MAIN GRID — base ===
+   The active layout is selected via data-layout="<id>" on the <main>.
+   Each preset overrides grid-template-* below. Panels keep their content;
+   only the grid container shape changes.
+*/
 main {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr;
-  grid-template-rows: 1.3fr 1fr;
   gap: 8px;
   min-height: 0;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  grid-template-rows: 1.3fr 1fr;
 }
+
+/* default: 3x2 — Throughput-large + 5 small panels (original layout) */
+main[data-layout="default"] {
+  grid-template-columns: 1.3fr 1fr 1fr;
+  grid-template-rows: 1.3fr 1fr;
+}
+
+/* focus: 1 hero panel left (Throughput), 5 narrow stacked on the right */
+main[data-layout="focus"] {
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: repeat(5, 1fr);
+}
+main[data-layout="focus"] > .panel:nth-child(1) {
+  grid-column: 1; grid-row: 1 / span 5;
+}
+
+/* stack: full-width rows, scroll-friendly. Good for narrow windows. */
+main[data-layout="stack"] {
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(6, minmax(180px, auto));
+  overflow-y: auto;
+}
+
+/* wide: 2 columns x 3 rows — better for ultrawide / tall windows */
+main[data-layout="wide"] {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(3, 1fr);
+}
+
+/* compact: 4 columns × 2 rows — smaller panels, more visible at once */
+main[data-layout="compact"] {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+/* In compact, shrink the metric tiles a bit so they don't dominate */
+main[data-layout="compact"] .metric-value { font-size: 16px; }
+main[data-layout="compact"] .donut { width: 70px; height: 70px; }
 
 /* === PANELS === */
 .panel {
@@ -427,6 +468,14 @@ main {
       <option value="60" selected>1 hour</option>
       <option value="360">6 hours</option>
       <option value="1440">24 hours</option>
+    </select>
+    <span class="ctl-label">Layout</span>
+    <select id="layout-select">
+      <option value="default">3 × 2 grid</option>
+      <option value="focus">Focus + sidebar</option>
+      <option value="wide">2 × 3 (wide)</option>
+      <option value="compact">3 × 2 compact</option>
+      <option value="stack">Stack (scroll)</option>
     </select>
     <button class="icon-btn" id="settings-btn" title="Settings">⚙ Settings</button>
   </div>
