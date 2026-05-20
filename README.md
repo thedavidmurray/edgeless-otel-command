@@ -100,4 +100,4 @@ Electron (main.js)
 
 ## License
 
-MIT
+Apache-2.0

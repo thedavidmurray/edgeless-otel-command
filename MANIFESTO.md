@@ -195,7 +195,7 @@ Every piece of writing in this product follows these rules:
 When you publish a plug-in to the registry, you are agreeing to a small
 list of things.
 
-(a)  Your plug-in is MIT, Apache 2.0, BSD, or ISC. If you want a
+(a)  Your plug-in is Apache 2.0, MIT, BSD, or ISC. If you want a
      copyleft license, that's fine; just keep it out of the index until
      we figure out the discoverability story for AGPL panels.
 
@@ -273,5 +273,5 @@ We watch them from a respectful distance, and we make them legible.
                                                               [ end of file ]
                                                               v 1.3.1
                                                               2026-05-20
-                                                              MIT
+                                                              Apache 2.0
 ```

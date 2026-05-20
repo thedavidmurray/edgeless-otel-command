@@ -69,7 +69,7 @@ my-plugin/
   "description": "Visualize service relationships from span data.",
   "author": "your-name",
   "homepage": "https://github.com/yourname/edgeless-plugin-service-map",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "minAppVersion": "1.2.0",
   "contributes": {
     "panels": [

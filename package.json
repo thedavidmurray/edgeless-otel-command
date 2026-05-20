@@ -4,7 +4,7 @@
   "description": "Edgeless OTEL Command Center \u2014 Cross-platform observability dashboard for OpenTelemetry + Jaeger",
   "main": "main.js",
   "author": "Edgeless <djm.claude.assistant@gmail.com>",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "start": "electron .",
     "build": "npm run build:all",
