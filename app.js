@@ -252,6 +252,22 @@ function detectAnomalies(allTracesByService, rollup) {
 }
 
 // ── Rendering: overview ────────────────────────────────────────────
+// Per-tool aggregate: { totalSpans, errSpans, name } sorted by spans desc.
+// Tool name is read from common span attributes used by Hermes / Claude Code.
+function toolBreakdown(spans) {
+  const out = {};
+  const TOOL_KEYS = ['tool.name', 'tool', 'hermes.tool', 'hermes.tool.name', 'claude.tool', 'mcp.tool'];
+  for (const s of spans) {
+    let name = null;
+    for (const k of TOOL_KEYS) if (s.tags[k]) { name = s.tags[k]; break; }
+    if (!name) continue;
+    out[name] = out[name] || { name, total: 0, err: 0 };
+    out[name].total++;
+    if (s.tags.error === true || s.tags.error === 'true') out[name].err++;
+  }
+  return Object.values(out).sort((a, b) => b.total - a.total);
+}
+
 function renderMetrics(a) {
   document.getElementById('m-traces').textContent = a.traces.length;
   document.getElementById('m-spans').textContent = a.total;
@@ -262,14 +278,56 @@ function renderMetrics(a) {
   document.getElementById('span-count').textContent = a.total;
   document.getElementById('err-rate').textContent = errPct;
 
-  let agent = '-', model = '-';
-  if (a.spans.length) {
-    const last = a.spans[a.spans.length - 1].tags;
-    agent = last['hermes.agent.name'] || last['agent.name'] || '-';
-    model = last['hermes.model'] || last['model'] || '-';
-  }
+  // Active Agent / Model — show DOMINANT not last, derived from tag frequency
+  // (the Hermes radar's Source/Model Mix idea: show what the swarm is actually
+  // running, not whatever was last sampled)
+  const tagFreq = (key) => {
+    const f = {};
+    for (const s of a.spans) {
+      const v = s.tags[key];
+      if (v) f[v] = (f[v] || 0) + 1;
+    }
+    const sorted = Object.entries(f).sort((x, y) => y[1] - x[1]);
+    return sorted[0] ? sorted[0][0] : '-';
+  };
+  const agent = tagFreq('hermes.agent.name') || tagFreq('agent.name') || '-';
+  const model = tagFreq('hermes.model') || tagFreq('model.name') || tagFreq('model') || tagFreq('claude.model') || '-';
   document.getElementById('m-agent').textContent = agent;
   document.getElementById('m-model').textContent = model;
+
+  // Tool failure rate (borrowed pattern from Hermes radar).
+  // Only show if at least 5 tool spans exist; otherwise the % is noise.
+  const tools = toolBreakdown(a.spans);
+  const toolTotal = tools.reduce((s, t) => s + t.total, 0);
+  const toolErr = tools.reduce((s, t) => s + t.err, 0);
+  const toolErrPct = toolTotal >= 5 ? (toolErr / toolTotal * 100) : null;
+  const toolEl = document.getElementById('m-tool-rate');
+  if (toolEl) {
+    toolEl.textContent = toolErrPct === null ? '-' : toolErrPct.toFixed(1) + '%';
+    toolEl.className = 'metric-value ' + (
+      toolErrPct === null ? 'glow-dim' :
+      toolErrPct >= 20 ? 'glow-red' :
+      toolErrPct >= 5  ? 'glow-amber' : 'glow-cyan'
+    );
+  }
+  // Top-tools mini-list inside the throughput panel
+  const mini = document.getElementById('tool-mini');
+  if (mini) {
+    if (!tools.length) {
+      mini.innerHTML = '';
+    } else {
+      const top = tools.slice(0, 6);
+      mini.innerHTML = `
+        <div class="tm-head">TOP TOOLS</div>
+        <div class="tm-rows">
+          ${top.map(t => {
+            const errPct = t.total ? (t.err / t.total * 100).toFixed(0) : 0;
+            const cls = errPct >= 20 ? 'glow-red' : errPct >= 5 ? 'glow-amber' : '';
+            return `<div class="tm-row"><span class="tm-name">${escapeHtml(t.name)}</span><span class="tm-count">${t.total}</span><span class="tm-err ${cls}">${t.err ? errPct + '% err' : 'clean'}</span></div>`;
+          }).join('')}
+        </div>`;
+    }
+  }
 
   // Sparklines per metric
   const buckets = new Array(12).fill(0);
@@ -435,10 +493,35 @@ function renderLog(a) {
   });
 }
 
+// Score-based exemplar selection (Hermes radar borrow).
+// Surfaces interesting traces, not just the most recent ones.
+// Errors > many-span traces > long traces > fresh, capped at 12.
+function selectExemplars(traces) {
+  const scored = traces.map(t => {
+    const spans = t.spans || [];
+    let dur = 0, hasErr = false, spanCount = spans.length;
+    if (spans.length) {
+      dur = Math.max(...spans.map(s => s.startTime + s.duration))
+          - Math.min(...spans.map(s => s.startTime));
+    }
+    for (const s of spans) {
+      const tags = tagsToObj(s.tags || []);
+      if (tags.error === true || tags.error === 'true') { hasErr = true; break; }
+    }
+    let score = 0;
+    if (hasErr) score += 100;
+    score += Math.min(spanCount, 50);                  // up to 50 for span count
+    score += Math.min(Math.log10(Math.max(1, dur/1000)) * 5, 20); // up to ~20 for slow traces
+    return { t, score, dur, hasErr, spanCount };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, 12);
+}
+
 function renderTraces(a) {
   const tbody = document.getElementById('trace-tbody');
   tbody.innerHTML = '';
-  const recent = a.traces.slice(-12).reverse();
+  const recent = selectExemplars(a.traces).map(x => x.t);
   for (const t of recent) {
     const spans = t.spans || [];
     const dur = spans.length
@@ -504,6 +587,30 @@ function renderMiniTree(a) {
   }
 }
 
+// Anomaly type → operator move (derived recommendation, like the
+// Hermes Agent Ops Radar's "Operator Moves" block — but computed from
+// our actual fired anomalies, not boilerplate)
+function operatorMoves(anomalies) {
+  const moves = [];
+  const seen = new Set();
+  const add = (m) => { if (!seen.has(m)) { seen.add(m); moves.push(m); } };
+  for (const a of anomalies) {
+    if (a.kind === 'GHOST_AGENT') {
+      add(`Check the producer for "${a.service}" — its cron / launchd plist may be stale or its env var wrong.`);
+    } else if (a.kind === 'LOOP_DETECT') {
+      add(`A loop is firing — open the trace and look for the operation that's repeating in a tight window.`);
+    } else if (a.kind === 'PHANTOM_STALL') {
+      add(`A span never closed. Could be a process that exited mid-tool-call. Trace ${(a.traceID||'').slice(0,12)}…`);
+    }
+  }
+  if (anomalies.length === 0 || anomalies.every(x => x.severity === 'ok')) {
+    add('All clear. Use the Op Breakdown to spot brittle dependencies before they fail.');
+  }
+  // Always-on tip
+  add('Open Recent Traces with high span counts when debugging loops or wrong tool selection.');
+  return moves.slice(0, 3); // top 3 max
+}
+
 function renderAnomalies() {
   const container = document.getElementById('anomaly-content');
   container.innerHTML = '';
@@ -526,6 +633,20 @@ function renderAnomalies() {
     }
     container.appendChild(card);
   }
+
+  // Operator Moves block — borrowed pattern from the Hermes Agent Ops Radar.
+  // Recommendations derived from the actual fired anomalies, not boilerplate.
+  const moves = operatorMoves(state.anomalies);
+  if (moves.length) {
+    const wrap = document.createElement('div');
+    wrap.className = 'operator-moves';
+    wrap.innerHTML = `
+      <div class="om-head">Operator Moves</div>
+      <ul class="om-list">${moves.map(m => `<li>${escapeHtml(m)}</li>`).join('')}</ul>
+    `;
+    container.appendChild(wrap);
+  }
+
   const lc = document.getElementById('last-check');
   if (lc) lc.textContent = fmtTime(new Date());
 }

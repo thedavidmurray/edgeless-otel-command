@@ -496,6 +496,41 @@ main[data-layout="compact"] .donut { width: 70px; height: 70px; }
   border: 1px solid var(--red-dim);
 }
 
+/* === OPERATOR MOVES (anomaly panel footer) === */
+.operator-moves {
+  margin-top: 10px; padding: 8px 10px;
+  border: 1px solid var(--text-dim); background: rgba(0,0,0,0.2);
+}
+.operator-moves .om-head {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--cyan); margin-bottom: 6px;
+}
+.operator-moves .om-list {
+  list-style: none; padding: 0; margin: 0;
+  font-size: 10px; line-height: 1.6; color: var(--text-bright);
+}
+.operator-moves .om-list li {
+  padding-left: 12px; position: relative;
+}
+.operator-moves .om-list li::before {
+  content: '▸'; position: absolute; left: 0; color: var(--cyan);
+}
+
+/* === TOP TOOLS MINI === */
+.tool-mini { margin: 8px 0; font-size: 10px; }
+.tool-mini .tm-head {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text-dim); margin-bottom: 4px;
+}
+.tool-mini .tm-rows { display: flex; flex-direction: column; gap: 2px; }
+.tool-mini .tm-row {
+  display: grid; grid-template-columns: 1fr 40px 70px;
+  gap: 6px; padding: 2px 0;
+}
+.tool-mini .tm-name { color: var(--text-bright); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tool-mini .tm-count { color: var(--text-med); text-align: right; }
+.tool-mini .tm-err { text-align: right; color: var(--text-dim); font-size: 9px; }
+
 /* === PANEL TOGGLES === */
 .panel-toggles {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -597,15 +632,23 @@ main[data-layout="compact"] .donut { width: 70px; height: 70px; }
           </div>
           <div class="metric">
             <div class="metric-value glow-cyan" id="m-agent">--</div>
-            <div class="metric-label">Active Agent</div>
+            <div class="metric-label">Top Agent</div>
             <div class="metric-spark" id="spark-agent"></div>
           </div>
           <div class="metric">
             <div class="metric-value glow-cyan" id="m-model">--</div>
-            <div class="metric-label">Model</div>
+            <div class="metric-label">Top Model</div>
             <div class="metric-spark" id="spark-model"></div>
           </div>
+          <div class="metric" style="grid-column: span 3;">
+            <div class="metric-value glow-cyan" id="m-tool-rate">--</div>
+            <div class="metric-label">Tool Failure Rate</div>
+            <div class="metric-spark" id="spark-tool-rate"></div>
+          </div>
         </div>
+
+        <!-- Top tools mini-table (Hermes radar borrow) -->
+        <div class="tool-mini" id="tool-mini"></div>
 
         <!-- Donut chart -->
         <div class="donut-wrap">
@@ -673,8 +716,8 @@ main[data-layout="compact"] .donut { width: 70px; height: 70px; }
       </div>
     </div>
 
-    <!-- Panel 6: Recent Traces + Mini Tree -->
-    <div class="panel" data-panel-id="traces" data-label="Recent Traces">
+    <!-- Panel 6: Trace Exemplars + Mini Tree -->
+    <div class="panel" data-panel-id="traces" data-label="Trace Exemplars">
       <div class="panel-content">
         <table class="trace-table" id="trace-table">
           <thead><tr><th>Trace ID</th><th>Root Op</th><th>Dur</th><th>Spans</th><th>Status</th></tr></thead>

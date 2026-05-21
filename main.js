@@ -79,7 +79,8 @@ function startProxyServer() {
     // Serve plug-in files: /plugins/<id>/<filename>
     if (req.url.startsWith('/plugins/')) {
       const safe = req.url.replace(/\.\.\//g, '');           // strip parent traversal
-      const subPath = safe.slice('/plugins/'.length);
+      const pathOnly = safe.split('?')[0].split('#')[0];     // strip query string + fragment
+      const subPath = pathOnly.slice('/plugins/'.length);
       const filePath = path.join(pluginsDir(), subPath);
       if (!filePath.startsWith(pluginsDir())) {
         res.writeHead(403); res.end('forbidden'); return;
