@@ -17,6 +17,7 @@ class SourceType(Enum):
     OBSIDIAN = "obsidian"
     INGESTION = "ingestion"
     MANUAL = "manual"
+    AUTOMATED = "automated"
 
 
 class ContentType(Enum):
@@ -39,6 +40,7 @@ class ProjectName(Enum):
     BTC_TRADER = "btc-sentiment-trader"
     TOOLS = "tools"
     CROSS_PROJECT = "cross-project"
+    AGENT_PLATFORM = "agent-platform"
 
 
 @dataclass

@@ -1,13 +1,16 @@
-#!/Library/Frameworks/Python.framework/Versions/3.11/bin/python3
+#!/Users/djm/claude-projects/.venv/bin/python
 """
 Cron Job Failure Alerting System
 Monitors cron job execution, detects failures, and sends email alerts.
 
 Usage:
-    # As a wrapper for cron jobs:
-    python cron_failure_alerter.py --wrap "job_name" -- command args
+    # Called by cron-wrapper.sh after each job completes:
+    python cron_failure_alerter.py --state-notify JOB_NAME EXIT_CODE
 
-    # Monitor all recent cron logs:
+    # Periodic scan of all state files (run from crontab every 30 min):
+    python cron_failure_alerter.py --state-notify --dry-run
+
+    # Monitor all recent cron logs (legacy mode):
     python cron_failure_alerter.py --check-logs
 
     # Test email alerting:
@@ -15,6 +18,7 @@ Usage:
 
 Author: Claude (task-93)
 Created: 2026-01-16
+Updated: 2026-05-21 - Added --state-notify mode, --dry-run, email spam guards
 """
 
 import sys
@@ -23,8 +27,7 @@ import subprocess
 import json
 import argparse
 import urllib.request
-import urllib.error
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 import traceback
@@ -605,7 +608,7 @@ class CronFailureAlerter:
                             _sdata = _json.load(_swf)
                         _status = _sdata.get('status', '')
                         _ner = _sdata.get('next_expected_run')
-                        _now = datetime.utcnow()
+                        _now = datetime.now(timezone.utc).replace(tzinfo=None)
 
                         if _status == 'running':
                             # Wrapper reported running — not stale by definition
@@ -649,7 +652,6 @@ class CronFailureAlerter:
                 if config.get('check_log_content') and 'log_pattern' in config:
                     import re
                     log_pattern = re.compile(config['log_pattern'])
-                    cutoff = datetime.now() - timedelta(hours=max_age_hours)
                     most_recent_entry = None
                     
                     with open(log_file, 'r') as f:
@@ -857,6 +859,217 @@ class CronFailureAlerter:
             print(f"❌ Error sending escalation: {e}")
             self._send_ntfy_backup('SYSTEM_CRITICAL', anomaly)
 
+    def state_notify_inline(self, job_name: str, exit_code: int, dry_run: bool = False):
+        """
+        Called by cron-wrapper.sh after each job completes.
+        Reads the state file and logs/alerts on failure.
+        This is the inline (per-job) notification path.
+
+        Args:
+            job_name: Name of the job that just ran
+            exit_code: Exit code of the job
+            dry_run: If True, log but don't send emails
+        """
+        state_dir = Path(os.environ.get('CRON_STATE_DIR',
+                                        str(CLAUDE_PROJECTS_ROOT / 'logs' / 'state')))
+        state_path = state_dir / f"{job_name}.json"
+
+        if not state_path.exists():
+            print(f"[state-notify] No state file for {job_name} at {state_path}")
+            return
+
+        try:
+            with open(state_path, 'r') as f:
+                state_data = json.load(f)
+        except Exception as e:
+            print(f"[state-notify] Failed to read state file for {job_name}: {e}")
+            return
+
+        status = state_data.get('status', 'unknown')
+        error = state_data.get('error')
+        wall_seconds = state_data.get('wall_seconds')
+
+        if status == 'ok':
+            print(f"[state-notify] {job_name} OK (exit={exit_code}, {wall_seconds}s)")
+            return
+
+        # Job failed or was killed
+        if not error:
+            error = f"Job exited with status '{status}' (exit_code={exit_code})"
+
+        # Truncate error for logging
+        error_short = error[:500] if isinstance(error, str) else str(error)[:500]
+
+        # Log to failure log
+        self._log_failure(job_name, error_short, exit_code)
+
+        # Rate-limit alerts: 1 per job per 24h
+        if not self._should_alert(job_name, cooldown_hours=24):
+            print(f"[state-notify] {job_name} FAILED but alert suppressed (cooldown)")
+            return
+
+        if dry_run:
+            print(f"[state-notify] [DRY RUN] Would alert for {job_name}: {error_short[:100]}")
+            return
+
+        # Diagnose the error
+        diagnosis = self.diagnose_error(error_short)
+        diag_html = ""
+        if diagnosis:
+            cause, fix = diagnosis
+            diag_html = (
+                f"<h3>Auto-Diagnosis</h3>"
+                f"<p><strong>Likely cause:</strong> {cause}</p>"
+                f"<p><strong>Suggested fix:</strong> <code>{fix}</code></p>"
+            )
+
+        subject = f"Cron Failed: {job_name}"
+        body = (
+            f"<h2>Cron Job Failure: {job_name}</h2>"
+            f"<p><strong>Status:</strong> {status}</p>"
+            f"<p><strong>Exit code:</strong> {exit_code}</p>"
+            f"<p><strong>Wall time:</strong> {wall_seconds}s</p>"
+            f"<p><strong>Error:</strong></p>"
+            f"<pre style='background:#f5f5f5;padding:10px;'>{error_short}</pre>"
+            f"{diag_html}"
+            f"<hr><p><small>Sent by cron_failure_alerter.py --state-notify</small></p>"
+        )
+
+        try:
+            message_id = send_email_to_david(subject, body, use_html=True)
+            if message_id:
+                self._record_alert(job_name)
+                print(f"[state-notify] Alert sent for {job_name}: {message_id}")
+            else:
+                print(f"[state-notify] Email send returned None for {job_name}")
+                self._send_ntfy_backup(job_name, error_short)
+        except Exception as e:
+            print(f"[state-notify] Email error for {job_name}: {e}")
+            self._send_ntfy_backup(job_name, error_short)
+
+    def scan_all_state_files(self, dry_run: bool = False):
+        """
+        Periodic scan of all state files in logs/state/.
+        Detects failed/killed jobs and sends a single digest email.
+        Implements 3 email spam guards:
+          1. Skip when all items fail (0/N = infra error)
+          2. Rate limit via date-stamped check (max 1 digest per day)
+          3. Skip when nothing to report
+        """
+        state_dir = CLAUDE_PROJECTS_ROOT / 'logs' / 'state'
+        if not state_dir.exists():
+            print("[scan] No state directory found")
+            return
+
+        failed_jobs = []
+        ok_jobs = []
+        total = 0
+
+        for state_file in sorted(state_dir.glob('*.json')):
+            total += 1
+            try:
+                with open(state_file, 'r') as f:
+                    data = json.load(f)
+                status = data.get('status', 'unknown')
+                job = data.get('job', state_file.stem)
+
+                if status in ('failed', 'killed'):
+                    error = data.get('error', '(no error)')
+                    if isinstance(error, str) and len(error) > 200:
+                        error = error[:200] + '...'
+                    exit_code = data.get('exit_code')
+                    started = data.get('started_at', '?')
+                    failed_jobs.append({
+                        'job': job,
+                        'status': status,
+                        'error': error,
+                        'exit_code': exit_code,
+                        'started_at': started,
+                    })
+                    # Log each failure
+                    self._log_failure(job, error or f"status={status}", exit_code)
+                elif status == 'ok':
+                    ok_jobs.append(job)
+            except Exception as e:
+                print(f"[scan] Error reading {state_file.name}: {e}")
+
+        # Guard 3: Skip when nothing to report
+        if not failed_jobs:
+            print(f"[scan] All {total} jobs OK, nothing to report")
+            return
+
+        # Guard 1: Skip when ALL items fail (0/N success = infra error, not useful digest)
+        if len(ok_jobs) == 0 and total > 0:
+            print(f"[scan] INFRA ERROR: 0/{total} jobs succeeded -- skipping digest (likely systemic)")
+            # Still log it, but don't spam email
+            self._log_failure('system_anomaly',
+                              f"All {total} state files show failure -- likely infra issue",
+                              None)
+            return
+
+        # Guard 2: Rate limit -- max 1 digest email per day
+        last_digest = self.state.get('last_digest_sent')
+        if last_digest:
+            try:
+                last_dt = datetime.fromisoformat(last_digest)
+                if datetime.now() - last_dt < timedelta(hours=24):
+                    print(f"[scan] Digest already sent at {last_digest}, skipping (24h cooldown)")
+                    return
+            except (ValueError, TypeError):
+                pass
+
+        print(f"[scan] {len(failed_jobs)} failed, {len(ok_jobs)} OK out of {total} total")
+
+        if dry_run:
+            print(f"[scan] [DRY RUN] Would send digest for {len(failed_jobs)} failed jobs:")
+            for fj in failed_jobs:
+                print(f"  - {fj['job']}: {fj['status']} (exit={fj['exit_code']})")
+            return
+
+        # Build digest email
+        subject = f"Cron Digest: {len(failed_jobs)} job(s) failing ({len(ok_jobs)}/{total} OK)"
+
+        rows = []
+        for fj in failed_jobs:
+            error_display = fj['error']
+            if isinstance(error_display, str):
+                # Escape HTML
+                error_display = error_display.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            rows.append(
+                f"<tr>"
+                f"<td style='padding:5px;border:1px solid #ddd;'>{fj['job']}</td>"
+                f"<td style='padding:5px;border:1px solid #ddd;'>{fj['status']}</td>"
+                f"<td style='padding:5px;border:1px solid #ddd;'>{fj['exit_code']}</td>"
+                f"<td style='padding:5px;border:1px solid #ddd;font-size:11px;'>{error_display}</td>"
+                f"</tr>"
+            )
+
+        body = (
+            f"<h2>Cron State Digest</h2>"
+            f"<p><strong>{len(failed_jobs)}</strong> failed / <strong>{len(ok_jobs)}</strong> OK "
+            f"/ <strong>{total}</strong> total state files</p>"
+            f"<table style='border-collapse:collapse;width:100%;'>"
+            f"<tr><th style='padding:5px;border:1px solid #ddd;'>Job</th>"
+            f"<th style='padding:5px;border:1px solid #ddd;'>Status</th>"
+            f"<th style='padding:5px;border:1px solid #ddd;'>Exit</th>"
+            f"<th style='padding:5px;border:1px solid #ddd;'>Error</th></tr>"
+            + "\n".join(rows)
+            + "</table>"
+            f"<hr><p><small>Sent by cron_failure_alerter.py --state-notify (periodic scan). "
+            f"Next digest in 24h.</small></p>"
+        )
+
+        try:
+            message_id = send_email_to_david(subject, body, use_html=True)
+            if message_id:
+                self.state['last_digest_sent'] = datetime.now().isoformat()
+                self._save_state()
+                print(f"[scan] Digest sent: {message_id}")
+            else:
+                print("[scan] Email send returned None")
+        except Exception as e:
+            print(f"[scan] Email error: {e}")
+
     def send_test_alert(self) -> bool:
         """Send a test alert to verify email system is working"""
         subject = "✅ Cron Alerting System Test"
@@ -1039,10 +1252,16 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Wrap a cron job with alerting:
-  cron_failure_alerter.py --wrap "youtube_intelligence" -- /path/to/script.sh
+  # Called by cron-wrapper.sh after each job:
+  cron_failure_alerter.py --state-notify youtube_likes 1
 
-  # Check for stale logs and send alerts:
+  # Periodic scan of all state files (run from crontab):
+  cron_failure_alerter.py --state-notify
+
+  # Dry run (log but don't email):
+  cron_failure_alerter.py --state-notify --dry-run
+
+  # Check for stale logs and send alerts (legacy mode):
   cron_failure_alerter.py --check-logs
 
   # Send a test alert:
@@ -1050,6 +1269,17 @@ Examples:
         """,
     )
 
+    parser.add_argument(
+        '--state-notify',
+        action='store_true',
+        help='State-file notification mode. With JOB_NAME EXIT_CODE args: inline per-job alert. '
+             'Without args: scan all state files and send digest.',
+    )
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Log actions but do not send emails or write state',
+    )
     parser.add_argument(
         '--wrap',
         metavar='JOB_NAME',
@@ -1078,7 +1308,7 @@ Examples:
     parser.add_argument(
         'command',
         nargs='*',
-        help='Command to wrap (use after --)',
+        help='Positional args: JOB_NAME EXIT_CODE for --state-notify, or command for --wrap',
     )
 
     args = parser.parse_args()
@@ -1086,7 +1316,22 @@ Examples:
     alerter = CronFailureAlerter()
 
     # Handle different modes
-    if args.test:
+    if args.state_notify:
+        if args.command and len(args.command) >= 2:
+            # Inline mode: called by cron-wrapper.sh after each job
+            job_name = args.command[0]
+            try:
+                exit_code = int(args.command[1])
+            except ValueError:
+                print(f"Error: exit_code must be an integer, got: {args.command[1]}")
+                sys.exit(1)
+            alerter.state_notify_inline(job_name, exit_code, dry_run=args.dry_run)
+        else:
+            # Periodic scan mode: scan all state files
+            alerter.scan_all_state_files(dry_run=args.dry_run)
+        sys.exit(0)
+
+    elif args.test:
         success = alerter.send_test_alert()
         sys.exit(0 if success else 1)
 
@@ -1098,11 +1343,11 @@ Examples:
         diagnosis = alerter.diagnose_error(args.diagnose)
         if diagnosis:
             cause, fix = diagnosis
-            print(f"🔍 Diagnosis:")
+            print(f"Diagnosis:")
             print(f"   Likely Cause: {cause}")
             print(f"   Suggested Fix: {fix}")
         else:
-            print("❓ No diagnosis available for this error pattern")
+            print("No diagnosis available for this error pattern")
         sys.exit(0)
 
     elif args.check_logs:

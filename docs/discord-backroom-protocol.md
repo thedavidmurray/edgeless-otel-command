@@ -6,6 +6,15 @@
 
 ## Rules
 
+## 0. Task-Mode Routing (Execution vs Ideation)
+
+`#bot-backroom` is used for two very different coordination patterns:
+
+- **execution**: hierarchical handoffs (convergence desired)
+- **ideation**: flat peer contributions (divergence desired)
+
+Ideation work MUST follow the envelopes in `docs/discord-multi-agent-setup.md` and should be run as **BLIND** (peers do not read each other's contributions before submitting). The close-detection / cooldown rules still apply.
+
 ### 1. Five-Minute Cooldown (Per-Agent)
 
 Each agent may post at most once every 5 minutes in `#bot-backroom`.

@@ -21,11 +21,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "lib"))
 from paperclip_constants import (
     AGENT_IDS,
+    AGENT_NAMES,
     COMPANY_ID,
     PAPERCLIP_URL,
     PROJECT_ROOT,
     ROUTING_DISABLED_AGENTS,
 )
+
+try:
+    from checkout_enforcement import checkout_with_enforcement  # type: ignore
+except Exception:
+    checkout_with_enforcement = None  # fallback if module missing
 
 BATCH_SIZE = 7
 MIN_CONFIDENCE = 0.25
@@ -423,29 +429,98 @@ def route_issue(issue: dict, current_loads: dict, routable_agents: set[str] | No
 
 
 def execute_assignment(issue_id: str, agent_name: str) -> bool | str:
-    """Assign issue. Returns True on success, 'conflict' on 409, False on other errors."""
-    agent_id = AGENT_IDS.get(agent_name)
-    if not agent_id:
-        return False
-    body = json.dumps({"agentId": agent_id, "expectedStatuses": ["todo", "backlog"]}).encode()
-    req = urllib.request.Request(
-        f"{PAPERCLIP_URL}/api/issues/{issue_id}/checkout",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            json.load(resp)
-            return True
-    except urllib.error.HTTPError as e:
-        if e.code == 409:
-            return "conflict"
-        log(f"API POST issues/{issue_id}/checkout failed: {e}")
-        return False
-    except Exception as e:
-        log(f"API POST issues/{issue_id}/checkout failed: {e}")
-        return False
+    """Assign issue.
+
+    Returns:
+      - True on success
+      - 'conflict' on 409 (already assigned)
+      - False on other errors
+
+    Capability gate behavior:
+      - If checkout_enforcement is available, we use it as the canonical checkout
+        implementation (it performs classification + warning/block + the checkout).
+      - If blocked, we attempt ONE auto-reroute to the gate's suggested agent.
+      - If enforcement module is unavailable (or errors), we fall back to direct checkout.
+    """
+
+    tried: list[str] = []
+
+    while True:
+        agent_id = AGENT_IDS.get(agent_name)
+        if not agent_id:
+            return False
+
+        tried.append(agent_name)
+
+        # Phase 2 capability gate: soft enforcement on checkout
+        if checkout_with_enforcement is not None:
+            try:
+                gate_result = checkout_with_enforcement(
+                    issue_id=issue_id,
+                    agent_id=agent_id,
+                    expected_statuses=["todo", "backlog"],
+                    dry_run=False,
+                )
+
+                action = gate_result.get("action")
+                if action == "blocked":
+                    suggested_uuid = gate_result.get("suggested_agent")
+                    suggested_name = AGENT_NAMES.get(suggested_uuid or "")
+
+                    log(
+                        f"CAPABILITY_GATE_BLOCKED issue={issue_id} agent={agent_name} "
+                        f"reason={gate_result.get('reason')} task_type={gate_result.get('task_type')} "
+                        f"suggested={suggested_name or '?'}"
+                    )
+
+                    # Auto-reroute: try the suggested primary agent once.
+                    if suggested_name and suggested_name not in tried:
+                        log(
+                            f"CAPABILITY_GATE_REROUTE issue={issue_id} from={agent_name} to={suggested_name} "
+                            f"task_type={gate_result.get('task_type')}"
+                        )
+                        agent_name = suggested_name
+                        continue
+
+                    return False
+
+                if action == "warned":
+                    log(
+                        f"CAPABILITY_GATE_WARNED issue={issue_id} agent={agent_name} "
+                        f"reason={gate_result.get('reason')} task_type={gate_result.get('task_type')}"
+                    )
+
+                # If enforcement ran, it already executed the checkout.
+                if gate_result.get("ok") is True:
+                    return True
+
+                # If enforcement returned ok=False for a non-block reason, treat as failure.
+                # (This avoids double-checkout attempts which can create confusing 409s.)
+                return False
+
+            except Exception as e:
+                log(f"Checkout enforcement error (falling through to direct checkout): {e}")
+
+        # Direct checkout fallback (only used when enforcement module unavailable)
+        body = json.dumps({"agentId": agent_id, "expectedStatuses": ["todo", "backlog"]}).encode()
+        req = urllib.request.Request(
+            f"{PAPERCLIP_URL}/api/issues/{issue_id}/checkout",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                json.load(resp)
+                return True
+        except urllib.error.HTTPError as e:
+            if e.code == 409:
+                return "conflict"
+            log(f"API POST issues/{issue_id}/checkout failed: {e}")
+            return False
+        except Exception as e:
+            log(f"API POST issues/{issue_id}/checkout failed: {e}")
+            return False
 
 
 def load_qa_feedback() -> dict:
